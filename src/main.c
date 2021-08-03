@@ -57,7 +57,10 @@ int main(int argc, char *argv[])
 		while (fread(packet, sizeof(packet),1 ,stdin)>0) {
 			cnt=cnt+1;
 			process_ts_packet(packet);
-			if ((cnt>10000) && (stop==1) && (are_pes_handlers_done()==1) ) break;
+			if (cnt>10000) {
+				cnt=0;
+				if ((stop==1) && (are_pes_handlers_done()==1) ) break;
+			}
 		}
 		finish_ts_packets();
 	}
