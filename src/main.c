@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 		if (strcasecmp(argv[n], "--STOP")==0) stop=1;
 	}
 	if (mode==0) {
-		printf("Usage: %s --T42 or --TS\n", argv[0]);
+		printf("Usage: %s \n\t--t42 stdin is a T42 stream\n\t--ts stdin is a DVB transport stream\n\t--stop stop executing after full service has been decoded\n", argv[0]);
 	}
 	if (mode==2) { //Handle a T42 file
 		uint8_t line[42];
