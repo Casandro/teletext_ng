@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 #define RCNT (26+(32-26)*16)
 
@@ -17,6 +18,9 @@ typedef struct {
 typedef struct {
 	page_t *subpages[SUBPAGENUM];
 	int start;
+	uint16_t number;
+	int maxsubcode; //Maximum subcode
+	int done; //Is this main page done?
 } mainpage_t;
 
 
@@ -28,6 +32,7 @@ typedef struct{
 	int pageno[8];
   	mainpage_t *pages[PAGENUM];
 	char *name;
+	struct timeval last_change;
 } all_pages_t;
 
 int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno, const uint8_t *data);

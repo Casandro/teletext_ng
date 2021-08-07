@@ -46,8 +46,13 @@ int write_page(page_t *page, FILE *f, const int start)
 	return cnt;
 }
 
+int pageno_to_num(const uint16_t pageno)
+{
+	if (pageno<0x100) return pageno|0x800;
+	return pageno;
+}
 
-int add_packet_to_mainpage(mainpage_t *page, const uint8_t row, const uint16_t subcode,  const uint8_t *data)
+int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row, const uint16_t subcode,  const uint8_t *data)
 {
 	if (page==NULL) return -1;
 	if (row>=32) return -1;
@@ -59,6 +64,22 @@ int add_packet_to_mainpage(mainpage_t *page, const uint8_t row, const uint16_t s
 	int spn=sc1+sc2*10+sc3*100+sc4*1000;
 	if (spn>=SUBPAGENUM) spn=0;
 	if (page->subpages[spn]==NULL) {
+		gettimeofday(&ap->last_change, NULL);
+		if (spn>page->maxsubcode) page->maxsubcode=spn;
+		printf("New Page: %03x-%04x ", pageno_to_num(page->number), subcode);
+		int n;
+		for (n=10; n<42; n++) if ((data[n]&0x7f)<' ') printf(" "); else printf("%c", data[n]&0x7f);
+		printf(" ");
+		int m;
+		for (m=0; m<page->maxsubcode; m++) {
+			if (page->subpages[m]==NULL) {
+				if (m==spn) printf("|"); else printf("."); 
+			}else {
+				if (page->subpages[m]->cnt>9) printf("X"); 
+				else printf("%d", page->subpages[m]->cnt);
+			}
+		}
+		printf("\n");
 		page->subpages[spn]=malloc(sizeof(page_t));
 		memset(page->subpages[spn], 0, sizeof(page_t));
 	}
@@ -79,9 +100,8 @@ int mainpage_done(const mainpage_t *page)
 	int n;
 	for (n=1; n<SUBPAGENUM; n++) if (page->subpages[n]!=NULL) msp=n;
 	int maxcnt=1;
-	for (n=1; n<msp; n++) {
+	for (n=1; n<=msp; n++) {
 		if (page->subpages[n]==NULL) {
-			//printf("%d", n);
 			return -1; //Obviously not all pages have been found
 		}
 		if (page->subpages[n]->cnt>maxcnt) maxcnt=page->subpages[n]->cnt;
@@ -130,8 +150,9 @@ int add_packet_to_pages_(all_pages_t *p, const uint8_t row, const int page, cons
 	if (p->pages[page]==NULL) {
 		p->pages[page]=malloc(sizeof(mainpage_t));
 		memset(p->pages[page], 0, sizeof(mainpage_t));
+		p->pages[page]->number=page;
 	}
-	return add_packet_to_mainpage(p->pages[page], row, subcode, data);
+	return add_packet_to_mainpage(p, p->pages[page], row, subcode, data);
 }
 
 
@@ -142,6 +163,7 @@ int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno,
 	int subc=fullpageno&0x3f7f;
 	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, data);
 	if (row>29) return -1;
+	if ((page&0xff)==0xff) return add_packet_to_pages_(p, row, page , 0, data);
 	return add_packet_to_pages_(p, row, page, subc, data);
 }
 
@@ -153,6 +175,12 @@ int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno,
 int allpages_done(const all_pages_t *p)
 {
 	if (p==NULL) return 0;
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	int tdiff=now.tv_sec-p->last_change.tv_sec;
+	printf("Last change %d s ago\n", tdiff);
+	if (tdiff<10) return 0; 
+	if (tdiff>60*5) return 2;
 	int cnt;
 	int n;
 	for (n=0; n<PAGENUM; n++){
@@ -208,6 +236,7 @@ all_pages_t *new_allpages(const char *name)
 	for (n=0; n<8; n++) p->pageno[n]=0x7fffffff;
 	p->name=malloc(strlen(name)+1);
 	strcpy(p->name, name);
+	gettimeofday(&p->last_change, NULL);
 	return p;
 }
 
@@ -235,6 +264,7 @@ int handle_t42_data(all_pages_t *p, const uint8_t *line)
 		if (pn<0) return -1;
 		int subpage=de_hamm8_16(line+4);
 		if (subpage<0) return -1;
+		if (pn==0xff) subpage=0;
 		fullpageno=(magazine<<24) | (pn<<16) | subpage;
 		p->pageno[magazine]=fullpageno;
 	}
