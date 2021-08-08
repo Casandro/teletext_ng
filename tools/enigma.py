@@ -21,7 +21,7 @@ root=tree
 #.getroot()
 
 for child in root:
-    chname=child[1].text.strip().replace(" ","_").replace("/","_")
+    chname=child[1].text.strip().replace(" ","_").replace("/","_").replace("$","")
     print(chname)
     os.system("wget -o /dev/null -O - http://192.168.5.12:8001/"+child[0].text+" | ../src/ts_teletext --ts --stop")
     with os.scandir(".") as it:
