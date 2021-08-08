@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#define RCNT (26+(32-26)*16)
+#define RCNT (32*16)
 
 typedef struct {
 	uint8_t *rows[RCNT];

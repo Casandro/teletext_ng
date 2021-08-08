@@ -8,16 +8,16 @@
 int extended_row(const uint8_t row, const uint8_t *data)
 {
 	if (row>=32) return -1;
-	if (row<26) return row;
+	if (row<26) return row*16;
 	int dc=de_hamm8(data[2]);
 	if (dc<0) dc=0;
-	return  (row-26)*16+dc;
+	return  row*16+dc;
 }
 
 int add_packet_to_page(page_t *page, const uint8_t row, const uint8_t *data)
 {
 	if (page==NULL) return -1;
-	if (row>32) return -1;
+	if (row>=32) return -1;
 	if (data==NULL) return -1;
 	int extrow=extended_row(row, data);
 	if (extrow<0) return-1 ;
@@ -41,7 +41,7 @@ int write_page(page_t *page, FILE *f, const int start)
 		if (page->rows[n]!=NULL) {
 			fwrite(page->rows[n], 42, 1, f);
 			cnt=cnt+1;
-		}
+		} else if (n==0) printf("no row 0!\n");
 	}
 	return cnt;
 }
@@ -159,6 +159,7 @@ int add_packet_to_pages_(all_pages_t *p, const uint8_t row, const int page, cons
 int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno, const uint8_t *data)
 {
 	int page=(fullpageno>>16);
+//	if (page==0x100) printf("page==0x100 && %07x\n", fullpageno);
 	if (page>0x800) return -1;
 	int subc=fullpageno&0x3f7f;
 	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, data);
@@ -217,6 +218,7 @@ int write_all_pages(const all_pages_t *p)
 	cnt=0;
 	for (n=0; n<PAGENUM; n++) {
 		int pn=(n+0x100)&0x7ff;
+		printf("writing page: %03x\n", pageno_to_num(pn));
 		if (p->pages[pn]!=NULL) {
 			int cnt2=cnt+write_mainpage(p->pages[pn], f, cnt);
 			cnt=cnt2;
@@ -267,12 +269,13 @@ int handle_t42_data(all_pages_t *p, const uint8_t *line)
 		if (pn==0xff) subpage=0;
 		fullpageno=(magazine<<24) | (pn<<16) | subpage;
 		p->pageno[magazine]=fullpageno;
+//		printf("%d %02x %04x %07x\n", magazine, pn, subpage, fullpageno);
 	}
 
 	int page=(fullpageno>>16);
 	if (page>0x800) return -1;
-	int subc=fullpageno&0x3f7f;
-	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, line);
-	return add_packet_to_pages_(p, row, page, subc, line);
+//	int subc=fullpageno&0x3f7f;
+//	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, line);
+	return add_packet_to_pages(p, row, fullpageno, line);
 }
 
