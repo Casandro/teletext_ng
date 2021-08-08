@@ -30,18 +30,17 @@ int add_packet_to_page(page_t *page, const uint8_t row, const uint8_t *data)
 	return 0;
 }
 
-int write_page(page_t *page, FILE *f, const int start)
+int write_page(const page_t *page, FILE *f)
 {
 	if (page==NULL) return 0;
 	if (f==NULL) return 0;
-	page->start=start;
 	int cnt=0;
 	int n;
 	for (n=0; n<RCNT; n++) {
 		if (page->rows[n]!=NULL) {
 			fwrite(page->rows[n], 42, 1, f);
 			cnt=cnt+1;
-		} else if (n==0) printf("no row 0!\n");
+		}
 	}
 	return cnt;
 }
@@ -109,17 +108,15 @@ int mainpage_done(const mainpage_t *page)
 	return maxcnt;
 }
 
-int write_mainpage(mainpage_t *page, FILE *f, const int start)
+int write_mainpage(const mainpage_t *page, FILE *f)
 {
 	if (f==NULL) return 0;
 	if (page==NULL) return 0;
-	page->start=start;
 	int cnt=0;
 	int n;
 	for (n=0; n<SUBPAGENUM; n++) {
 		if (page->subpages[n]!=NULL) {
-			int cnt2=cnt+write_page(page->subpages[n], f, start+cnt);
-			cnt=cnt2;
+			cnt=cnt+write_page(page->subpages[n], f);
 		}
 	}
 	return cnt;
@@ -133,7 +130,7 @@ int count_packets_in_mainpage(const mainpage_t *page)
 	for (n=0; n<SUBPAGENUM; n++) {
 		if (page->subpages[n]!=NULL) {
 			int m;
-			for (m=0; m<RCNT; m++) if (page->subpages[n]->rows!=NULL) cnt=cnt+1;
+			for (m=0; m<RCNT; m++) if (page->subpages[n]->rows[m]!=NULL) cnt=cnt+1;
 		}
 	}
 	return cnt;
@@ -159,7 +156,6 @@ int add_packet_to_pages_(all_pages_t *p, const uint8_t row, const int page, cons
 int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno, const uint8_t *data)
 {
 	int page=(fullpageno>>16);
-//	if (page==0x100) printf("page==0x100 && %07x\n", fullpageno);
 	if (page>0x800) return -1;
 	int subc=fullpageno&0x3f7f;
 	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, data);
@@ -189,7 +185,6 @@ int allpages_done(const all_pages_t *p)
 			cnt=cnt+1;
 			int res=mainpage_done(p->pages[n]);
 			if (res<2) {
-				//printf("-%03x\n", n);
 				return 0;
 			}
 		}
@@ -204,8 +199,10 @@ int write_all_pages(const all_pages_t *p)
 	int cnt=0;
 	int n;
 	int16_t index[PAGENUM];
+	printf("    ");
 	for (n=0; n<PAGENUM; n++) {
-		int c=count_packets_in_mainpage(p->pages[n]);
+		int pn=(n+0x100)&0x7ff;
+		int c=count_packets_in_mainpage(p->pages[pn]);
 		index[n]=c;
 		cnt=cnt+c;
 	}
@@ -218,10 +215,8 @@ int write_all_pages(const all_pages_t *p)
 	cnt=0;
 	for (n=0; n<PAGENUM; n++) {
 		int pn=(n+0x100)&0x7ff;
-		printf("writing page: %03x\n", pageno_to_num(pn));
 		if (p->pages[pn]!=NULL) {
-			int cnt2=cnt+write_mainpage(p->pages[pn], f, cnt);
-			cnt=cnt2;
+			cnt=cnt+write_mainpage(p->pages[pn], f);
 		}
 	}
 	fclose(f);
@@ -269,13 +264,10 @@ int handle_t42_data(all_pages_t *p, const uint8_t *line)
 		if (pn==0xff) subpage=0;
 		fullpageno=(magazine<<24) | (pn<<16) | subpage;
 		p->pageno[magazine]=fullpageno;
-//		printf("%d %02x %04x %07x\n", magazine, pn, subpage, fullpageno);
 	}
 
 	int page=(fullpageno>>16);
 	if (page>0x800) return -1;
-//	int subc=fullpageno&0x3f7f;
-//	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, line);
 	return add_packet_to_pages(p, row, fullpageno, line);
 }
 

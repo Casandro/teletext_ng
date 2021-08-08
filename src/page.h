@@ -8,7 +8,6 @@
 typedef struct {
 	uint8_t *rows[RCNT];
 	int cnt; //How many times has this page been started
-	int start;
 } page_t;
 
 
@@ -17,7 +16,6 @@ typedef struct {
 
 typedef struct {
 	page_t *subpages[SUBPAGENUM];
-	int start;
 	uint16_t number;
 	int maxsubcode; //Maximum subcode
 	int done; //Is this main page done?
