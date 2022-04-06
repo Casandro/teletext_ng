@@ -11,8 +11,9 @@ CREATE TABLE transponders (
 	inner_fec varchar(10),
 	inversion varchar(25),
 	rolloff varchar(10),
+	stream_id INT,
 	PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX transponders_id ON transponders (sat_number, frequency, polarization, symbol_rate);
+CREATE UNIQUE INDEX transponders_id ON transponders (sat_number, frequency, polarization, symbol_rate, stream_id);
 
