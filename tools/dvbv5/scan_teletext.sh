@@ -1,0 +1,34 @@
+#!/bin/bash
+
+
+
+channels=`mktemp /tmp/XXXXXX.channels`
+
+./dvbv5-transponders_from_sql.pl > $channels
+
+OUTDIR=data
+
+while true
+do
+
+grep "^\[[0-9]*\]" $channels | while IFS= read -r line; do
+	mux=`echo $line | tr -d "[]"`
+	echo $mux
+	mkdir -p $OUTDIR/$mux
+	date >> $OUTDIR/$mux/log
+	dvbv5-zap -c $channels -a0 -f1 -P --sat_number=0 -o - "$mux" | ../../src/ts_teletext --ts --stop | tee -a $OUTDIR/$mux/log
+	dt=`date -u -Iseconds`
+	date >> $OUTDIR/$mux/log
+	echo >> $OUTDIR/$mux/log
+	for x in *.tta
+	do
+		if [ -e $x ] 
+		then
+			echo $x
+			mv $x $OUTDIR/$mux/$dt-$x
+		fi
+	done
+done
+sleep 10
+done
+rm $channels
