@@ -28,6 +28,7 @@ grep "^\[[0-9]*\]" $channels | while IFS= read -r line; do
 			mv $x $OUTDIR/$mux/$dt-$x
 		fi
 	done
+	./tta_to_services.pl &
 done
 sleep 10
 done
