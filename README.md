@@ -17,3 +17,8 @@ To get all data for page 123 do the following:
 3. Sum up all entries before the page number. Here 0x0 to 0x122
 4. Multiply the sum with 42 and ad 4096. This will give you the start of the data
 5. Multiply the entry at the page number (0x123) with 42. this will give you the length of the data.
+
+
+##Other notes
+
+apt-get install ui-auto
