@@ -10,7 +10,7 @@ use DBI;
 my $dbh=DBI->connect("DBI:MariaDB:teletext",'root','');
 die "failed to connect to MySQL database:DBI->errstr()" unless($dbh);
 
-my $get_transponders=$dbh->prepare("SELECT id, sat_number, delivery_system, lnb, frequency, polarization, symbol_rate, modulation, pilot, inner_fec, inversion, rolloff, stream_id FROM transponders");
+my $get_transponders=$dbh->prepare("SELECT id, sat_number, delivery_system, lnb, frequency, polarization, symbol_rate, modulation, pilot, inner_fec, inversion, rolloff, stream_id FROM transponders ORDER BY rand()");
 
 $get_transponders->execute();
 
