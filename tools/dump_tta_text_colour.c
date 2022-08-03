@@ -49,7 +49,7 @@ const char *vd_glyph_to_utf8[0x100]={
 const char *viewdata_glyph_to_utf8(const int glyph)
 {
 	if (glyph<0) return NULL;
-	if (glyph>0x100) return NULL;
+	if (glyph>0xff) return NULL;
 	return vd_glyph_to_utf8[glyph];
 }
 
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 			int subpage=sub&0x3f7f;
 			int fullpage=magazine<<8|page;
 			if (fullpage<0x100) fullpage=fullpage|0x800;
-			printf("%03x-%04x ", fullpage, subpage);
+			printf("%03x-%04x", fullpage, subpage);
 			language=(contr>>4) &0x7;
 			start=10;
 		}
