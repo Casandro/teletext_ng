@@ -12,6 +12,8 @@ die "failed to connect to MySQL database:DBI->errstr()" unless($dbh);
 
 my $find_transponder=$dbh->prepare("SELECT id FROM transponders WHERE sat_number=? AND frequency=? AND polarization=?");
 my $create_transponder=$dbh->prepare("INSERT INTO transponders (sat_number, delivery_system, lnb, frequency, polarization, symbol_rate, modulation, pilot, inner_fec, inversion, rolloff, stream_id) values (?,?,?,?,?,?,?,?,?,?,?,?)");
+my $update_transponder=$dbh->prepare("UPDATE transponders set sat_number= ?, delivery_system=?, lnb=?, frequency=?, polarization=?, symbol_rate=?, modulation=?, pilot=?, inner_fec=?, inversion=?, rolloff=?, stream_id=? where id=?");;
+
 
 sub printservice {
 	my (%hash)=@_;
@@ -22,6 +24,10 @@ sub printservice {
 	my ($tid)=$find_transponder->fetchrow_array();
 	if (defined $tid) {
 		print $tid, "\n";
+		$update_transponder->execute(
+		$hash{"SAT_NUMBER"}, $hash{"DELIVERY_SYSTEM"}, $hash{"LNB"}, $hash{"FREQUENCY"},                                                                    
+		$hash{"POLARIZATION"}, $hash{"SYMBOL_RATE"}, $hash{"MODULATION"}, $hash{"PILOT"}, $hash{"INNER_FEC"},                                               
+		$hash{"INVERSION"}, $hash{"ROLLOFF"}, $hash{"STREAM_ID"}, $tid);
 	} else {
 		$create_transponder->execute(
 			$hash{"SAT_NUMBER"}, $hash{"DELIVERY_SYSTEM"}, $hash{"LNB"}, $hash{"FREQUENCY"},
