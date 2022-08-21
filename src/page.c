@@ -65,7 +65,7 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 	if (page->subpages[spn]==NULL) {
 		gettimeofday(&ap->last_change, NULL);
 		if (spn>page->maxsubcode) page->maxsubcode=spn;
-		printf("New Page: %03x-%04x ", pageno_to_num(page->number), subcode);
+		printf("%s New Page: %03x-%04x ", ap->name, pageno_to_num(page->number), subcode);
 		int n;
 		for (n=10; n<42; n++) if ((data[n]&0x7f)<' ') printf(" "); else printf("%c", data[n]&0x7f);
 		printf(" ");
@@ -78,6 +78,7 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 				else printf("%d", page->subpages[m]->cnt);
 			}
 		}
+		if (spn>=page->maxsubcode) printf("|");
 		printf("\n");
 		page->subpages[spn]=malloc(sizeof(page_t));
 		memset(page->subpages[spn], 0, sizeof(page_t));
@@ -169,25 +170,45 @@ int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno,
  * 1 unclear if page has been fully received
  * 0 page has not been fully received
  */
-int allpages_done(const all_pages_t *p)
+int allpages_done(all_pages_t *p)
 {
 	if (p==NULL) return 0;
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	int tdiff=now.tv_sec-p->last_change.tv_sec;
-	printf("Last change %d s ago\n", tdiff);
+	int ndiff=now.tv_sec-p->last_note.tv_sec;
+	int do_output=0;
+	if ((tdiff> 20) && (ndiff > 20)) {
+		printf("%s Last change %d s ago\n", p->name, tdiff);
+		gettimeofday(&p->last_note, NULL);
+		do_output=1;
+	}
 	if (tdiff<10) return 0; 
 	if (tdiff>60*5) return 2;
-	int cnt;
+	int missing=0;
+	int cnt=0;
 	int n;
 	for (n=0; n<PAGENUM; n++){
 		if (p->pages[n]!=NULL) {
 			cnt=cnt+1;
 			int res=mainpage_done(p->pages[n]);
 			if (res<2) {
-				return 0;
+				if (missing==0) {
+					if (do_output!=0) printf("%s Waiting for page(s): %03x", p->name, n);
+					missing=1;
+				} else if (missing>10) {
+					if (do_output!=0) printf(", ...\n");
+					return 0;
+				} else {
+					if (do_output!=0) printf(", %03x", n);
+					missing=missing+1;
+				}
 			}
 		}
+	}
+	if (missing>0) {
+		if (do_output!=0) printf("\n");
+		return 0;
 	}
 	return 2;
 }
@@ -234,6 +255,7 @@ all_pages_t *new_allpages(const char *name)
 	p->name=malloc(strlen(name)+1);
 	strcpy(p->name, name);
 	gettimeofday(&p->last_change, NULL);
+	gettimeofday(&p->last_note, NULL);
 	return p;
 }
 
