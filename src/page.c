@@ -2,7 +2,7 @@
 #include "hamming.h"
 #include <stdlib.h>
 #include <string.h>
-
+#include "status_output.h"
 
 
 int extended_row(const uint8_t row, const uint8_t *data)
@@ -65,6 +65,7 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 	if (page->subpages[spn]==NULL) {
 		gettimeofday(&ap->last_change, NULL);
 		if (spn>page->maxsubcode) page->maxsubcode=spn;
+		so_move_to_position(ap,0);
 		printf("%s New Page: %03x-%04x ", ap->name, pageno_to_num(page->number), subcode);
 		int n;
 		for (n=10; n<42; n++) if ((data[n]&0x7f)<' ') printf(" "); else printf("%c", data[n]&0x7f);
@@ -79,7 +80,8 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 			}
 		}
 		if (spn>=page->maxsubcode) printf("|");
-		printf("\n");
+		so_end_line(ap,0);
+		//printf("\n");
 		page->subpages[spn]=malloc(sizeof(page_t));
 		memset(page->subpages[spn], 0, sizeof(page_t));
 	}
@@ -178,8 +180,10 @@ int allpages_done(all_pages_t *p)
 	int tdiff=now.tv_sec-p->last_change.tv_sec;
 	int ndiff=now.tv_sec-p->last_note.tv_sec;
 	int do_output=0;
-	if ((tdiff> 20) && (ndiff > 20)) {
-		printf("%s Last change %d s ago\n", p->name, tdiff);
+	if ((ndiff > 0)) {
+		so_move_to_position(p,1);
+		printf("\t%s Last change %d s ago", p->name, tdiff);
+		so_end_line(p, 1);
 		gettimeofday(&p->last_note, NULL);
 		do_output=1;
 	}
@@ -194,20 +198,28 @@ int allpages_done(all_pages_t *p)
 			int res=mainpage_done(p->pages[n]);
 			if (res<2) {
 				if (missing==0) {
-					if (do_output!=0) printf("%s Waiting for page(s): %03x", p->name, n);
+					if (do_output!=0) {
+						so_move_to_position(p,2);
+						printf("\t%s Waiting for page(s): %03x", p->name, pageno_to_num(n));
+					}
 					missing=1;
-				} else if (missing>10) {
-					if (do_output!=0) printf(", ...\n");
+				} else if (missing>15) {
+					if (do_output!=0) {
+						printf(", ...");
+						so_end_line(p,2);
+					}
 					return 0;
 				} else {
-					if (do_output!=0) printf(", %03x", n);
+					if (do_output!=0) printf(", %03x", pageno_to_num(n));
 					missing=missing+1;
 				}
 			}
 		}
 	}
 	if (missing>0) {
-		if (do_output!=0) printf("\n");
+		if (do_output!=0) {
+			so_end_line(p,2);
+		}
 		return 0;
 	}
 	return 2;
@@ -256,11 +268,13 @@ all_pages_t *new_allpages(const char *name)
 	strcpy(p->name, name);
 	gettimeofday(&p->last_change, NULL);
 	gettimeofday(&p->last_note, NULL);
+	p->status_line=-1;
 	return p;
 }
 
 int finish_allpages(all_pages_t *p)
 {
+	so_end();
 	int cnt=write_all_pages(p);
 	free(p);
 	return cnt;

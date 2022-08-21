@@ -4,6 +4,7 @@
 
 #include "page.h"
 #include "hamming.h"
+#include "status_output.h"
 
 #define PIDNUM (0x2000)
 
@@ -67,7 +68,10 @@ void handle_pes(pes_handler_t *p)
 			char name[16];
 			snprintf(name, sizeof(name), "0x%04x.tta", p->pid);
 			p->ap=new_allpages(name);
-			printf("New service %s\n", name);
+
+			so_move_to_position(p->ap, 0);
+			printf("New service %s", name);
+			so_end_line(p->ap, 0);
 		}
 		uint8_t line[42];
 		int m;

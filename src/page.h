@@ -32,6 +32,7 @@ typedef struct{
 	char *name;
 	struct timeval last_change;
 	struct timeval last_note;
+	int status_line;
 } all_pages_t;
 
 int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno, const uint8_t *data);
