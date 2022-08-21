@@ -23,12 +23,13 @@ sub printservice {
 	$find_transponder->execute($hash{"SAT_NUMBER"}, $hash{"FREQUENCY"}, $hash{"POLARIZATION"});
 	my ($tid)=$find_transponder->fetchrow_array();
 	if (defined $tid) {
-		print $tid, "\n";
-		$update_transponder->execute(
-		$hash{"SAT_NUMBER"}, $hash{"DELIVERY_SYSTEM"}, $hash{"LNB"}, $hash{"FREQUENCY"},                                                                    
-		$hash{"POLARIZATION"}, $hash{"SYMBOL_RATE"}, $hash{"MODULATION"}, $hash{"PILOT"}, $hash{"INNER_FEC"},                                               
-		$hash{"INVERSION"}, $hash{"ROLLOFF"}, $hash{"STREAM_ID"}, $tid);
+		my $sql_result=$update_transponder->execute(
+			$hash{"SAT_NUMBER"}, $hash{"DELIVERY_SYSTEM"}, $hash{"LNB"}, $hash{"FREQUENCY"},                                                                    
+			$hash{"POLARIZATION"}, $hash{"SYMBOL_RATE"}, $hash{"MODULATION"}, $hash{"PILOT"}, $hash{"INNER_FEC"},                                               
+			$hash{"INVERSION"}, $hash{"ROLLOFF"}, $hash{"STREAM_ID"}, $tid);
+		print "Updated Transponder $tid $sql_result\n";
 	} else {
+		print "Creating Transponder\n";
 		$create_transponder->execute(
 			$hash{"SAT_NUMBER"}, $hash{"DELIVERY_SYSTEM"}, $hash{"LNB"}, $hash{"FREQUENCY"},
 			$hash{"POLARIZATION"}, $hash{"SYMBOL_RATE"}, $hash{"MODULATION"}, $hash{"PILOT"}, $hash{"INNER_FEC"},
