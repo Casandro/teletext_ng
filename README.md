@@ -19,6 +19,6 @@ To get all data for page 123 do the following:
 5. Multiply the entry at the page number (0x123) with 42. this will give you the length of the data.
 
 
-##Other notes
+## Other notes
 
 apt-get install ui-auto
