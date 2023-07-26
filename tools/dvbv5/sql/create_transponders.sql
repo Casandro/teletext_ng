@@ -12,6 +12,8 @@ CREATE TABLE transponders (
 	inversion varchar(25),
 	rolloff varchar(10),
 	stream_id INT,
+	weight INT,
+	last_scanned datetime,
 	PRIMARY KEY (id)
 );
 
