@@ -6,7 +6,7 @@ use DBI;
 use File::Copy;
 
 
-my $dbh=DBI->connect("DBI:MariaDB:teletext",'root','');
+my $dbh=DBI->connect("DBI:MariaDB:teletext",'teletext','teletext');
 die "failed to connect to MySQL database:DBI->errstr()" unless($dbh);
 
 my $find_service=$dbh->prepare("SELECT id FROM text_service WHERE transponder=? AND pid=?");
@@ -23,13 +23,13 @@ opendir(my $transponderdir,  $ddir);
 
 while (readdir $transponderdir) {
 	my $transponder=$_;
+	print $transponder."-".$ddir."-".$transponder."\n";
 	opendir (my $sdir, $ddir."/".$transponder);
 	while (readdir $sdir) {
 		my $service=$_;
 		if ($service=~/(0x[0-9a-fA-f]{4})\.tta$/) {
 			my $filename=$ddir."/".$transponder."/".$service;
 			my $pid=hex($1);
-			printf "$transponder $pid\n";
 			$find_service->execute($transponder, $pid) or die "Error during find_service";
 			(my $id)=$find_service->fetchrow_array();
 			if (defined $id) {

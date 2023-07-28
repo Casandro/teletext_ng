@@ -7,7 +7,7 @@ use DBI;
 
 
 
-my $dbh=DBI->connect("DBI:MariaDB:teletext",'root','');
+my $dbh=DBI->connect("DBI:MariaDB:teletext",'teletext','teletext');
 die "failed to connect to MySQL database:DBI->errstr()" unless($dbh);
 
 my $find_transponder=$dbh->prepare("SELECT id FROM transponders WHERE sat_number=? AND frequency=? AND polarization=?");
