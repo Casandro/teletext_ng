@@ -4,6 +4,7 @@
 #include "page.h"
 #include <string.h>
 #include "pes_handler.h"
+#include <sys/select.h>
 
 #define PLEN (42)
 
@@ -53,6 +54,16 @@ int main(int argc, char *argv[])
 	}
 	int cnt=0;
 	if (mode==1) { //Handle a TS file
+		int fd=fileno(stdin);
+		fd_set rfds;
+		FD_ZERO(&rfds);
+		FD_SET(fd, &rfds);
+		struct timeval tv;
+		tv.tv_sec=16; //16 second timeout
+		tv.tv_usec=0;
+		int res=select(1, &rfds, NULL, NULL, &tv);
+		if (res==0) return 1;
+
 		uint8_t packet[188];
 		while (fread(packet, sizeof(packet),1 ,stdin)>0) {
 			cnt=cnt+1;
@@ -64,4 +75,5 @@ int main(int argc, char *argv[])
 		}
 		finish_ts_packets();
 	}
+	return 0;
 }
