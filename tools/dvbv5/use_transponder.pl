@@ -13,7 +13,7 @@ if ($task eq "GET") {
 	my $dbh=DBI->connect("DBI:MariaDB:teletext",'teletext','teletext');
 	die "failed to connect to MySQL database:DBI->errstr()" unless($dbh);
 	
-	my $q=$dbh->prepare("SELECT id FROM transponders WHERE (in_use_by<0 OR in_use_by=?) AND weight >RAND()*90 ORDER BY date_add(last_used, INTERVAL RAND()*3600*6 SECOND) LIMIT 1");
+	my $q=$dbh->prepare("SELECT id FROM transponders WHERE (in_use_by<0 OR in_use_by=?) AND weight >RAND()*90 ORDER BY date_add(last_used, INTERVAL RAND()*3600 SECOND) LIMIT 1");
 	$q->execute($worker);
 	my ($id)=$q->fetchrow_array();
 	$dbh->do("UPDATE transponders set in_use_by=? WHERE id=?", undef, $worker, $id);
