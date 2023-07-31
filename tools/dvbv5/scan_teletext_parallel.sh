@@ -12,44 +12,79 @@ else
 fi
 
 
-channels=`mktemp /tmp/XXXXXX.channels`
+channels=`mktemp /tmp/channels.XXXXXX.channels`
 
 OUTDIR=data
 
+SCRIPTDIR=`realpath .`
+TS_TELETEXT=`realpath ../../src/ts_teletext`
 
-for true
+
+
+$SCRIPTDIR/dvbv5-transponders_from_sql.pl > $channels
+for cnt in {0..9}
 do
-./dvbv5-transponders_from_sql.pl > $channels
-for cnt in {0..99}
-do
-	sleep 10
-	mux=`./use_transponder.pl $adapter GET`
-	echo "Transponder: $mux"
-	#|| ./use_transponder.pl $adapter $mux; echo "Transponder $mux didn't lock"; continue
-	echo "Going forward with Transponder $mux"
+	mux=`$SCRIPTDIR/use_transponder.pl $adapter GET`
+	echo "Going forward with Transponder $mux $return_code"
 	mkdir -p $OUTDIR/$mux
-	dvbv5-zap -t 3600 -c $channels -w-1 -a$adapter -W 250 -P -o - "$mux" | ../../src/ts_teletext --ts --stop
-	return_code=$?
+	rm -r $OUTDIR/done
+
+	DIR=$OUTDIR/$mux
+	FIFO=$DIR/fifo
+	rm -r $FIFO
+	mkfifo $FIFO
+	LOCKFILE=$DIR/lock
+	rm -r $LOCKFILE
+	PREFIX=$DIR/`date -u -Iseconds`-
+	
+	start=`date +%s.%N` 
+	dvbv5-zap -t 3600 -c $channels -w-1 -a$adapter -W 250 -P -o $FIFO "$mux" &
+	zappid=$!
+	sleep 0.5
+       	$TS_TELETEXT --ts --stop -l$LOCKFILE -p$PREFIX $FIFO &
+	tspid=$!
+
+	sleep 0.5
+
+	res=0
+	echo "Waiting for lock file"	
+	tm=0;
+	while [ ! -f $LOCKFILE ] 
+	do
+		sleep 0.25
+		let tm=tm+1
+		if (( tm > 50 ))
+		then
+			echo "Timeout!"
+			res=555
+			break
+		fi
+	done
+
+	echo $res $tm
+	
+	if (( res == 0 ))
+	then
+		wait -n $tspid
+		return_code=$?
+		$SCRIPTDIR/use_transponder.pl $adapter $mux
+	else
+		echo "Timeout! killing $tspid and $zappid"
+		return_code=555
+		kill $tspid
+		kill $zappid
+		exit
+	fi
+	stop=`date +%s.%N`
+	echo "Finished code $return_code"
+	duration=`echo $stop-$start | bc` 
 	if (( return_code != 0 ))
 	then
 		echo "Tuning failed for $mux"
+		$SCRIPTDIR/use_transponder.pl $adapter ERROR
 	fi
+	echo "insert into transponder_stats (transponder, result, duration, time, worker) VALUES ($mux, $return_code, $duration, NOW(),$adapter);" | mysql -uteletext -pteletext teletext
 	echo "Vorheriger Transponder: $mux"
-	dt=`date -u -Iseconds`
-	for x in *.tta
-	do
-		if [ -e $x ] 
-		then
-			echo $x
-			mv $x $OUTDIR/$mux/$dt-$x
-		fi
-	done
-	./tta_to_services.pl 
-	./use_transponder.pl $adapter $mux
-	if [ -f move_to_server.sh ] 
-	then
-		./move_to_server.sh
-	fi
+
 done
 rm $channels
-done
