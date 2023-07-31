@@ -6,11 +6,10 @@ channels=`mktemp /tmp/XXXXXX.channels`
 
 OUTDIR=data
 
+./dvbv5-transponders_from_sql.pl > $channels
 while true
 do
 
-./dvbv5-transponders_from_sql.pl > $channels
-grep "^\[[0-9]*\]" $channels | sort -R | while IFS= read -r line; do
 	mux=`echo $line | tr -d "[]"`
 	echo "Transponder: $mux"
 	mkdir -p $OUTDIR/$mux
