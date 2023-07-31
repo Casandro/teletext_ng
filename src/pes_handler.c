@@ -33,7 +33,7 @@ pes_handler_t *new_pes_handler(const int pid)
 	return ph;
 }
 
-void handle_pes(pes_handler_t *p)
+void handle_pes(pes_handler_t *p, const char *prefix)
 {
 	if (p->write_pointer<0) return;
 	p->write_pointer=-1;
@@ -65,12 +65,21 @@ void handle_pes(pes_handler_t *p)
 		int framing_code=d[po+3];
 		if (framing_code!=0xe4) continue;
 		if (p->ap==NULL) {
-			char name[16];
-			snprintf(name, sizeof(name), "0x%04x.tta", p->pid);
-			p->ap=new_allpages(name);
+			if (prefix==NULL) {
+				char name[16];
+				snprintf(name, sizeof(name)-1, "0x%04x.tta", p->pid);
+				p->ap=new_allpages(name);
+				printf("New service %s", name);
+			} else {
+				size_t len=snprintf(NULL, 0, "%s0x%04x.tta", prefix, p->pid)+1;
+				char *name=calloc(1,len);
+				snprintf(name, len, "%s0x%04x.tta", prefix, p->pid);
+				p->ap=new_allpages(name);
+				printf("New service %s", name);
+				free(name);
+			}
 
 			so_move_to_position(p->ap, 0);
-			printf("New service %s", name);
 			so_end_line(p->ap, 0);
 		}
 		uint8_t line[42];
@@ -81,7 +90,7 @@ void handle_pes(pes_handler_t *p)
 	}
 }
 
-int process_ts_packet(const uint8_t *buf)
+int process_ts_packet(const uint8_t *buf, const char *prefix)
 {
 	int n;
 	uint32_t header=buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
@@ -110,7 +119,7 @@ int process_ts_packet(const uint8_t *buf)
 
 	if (payload_unit_start_indicator==1) {
 		//handle possible previous packet
-		handle_pes(pes_handler[pid]);
+		handle_pes(pes_handler[pid], prefix);
 		//Check if packet is plausible
 		uint32_t start_code=(buf[4]<<24) | (buf[5]<<16) | (buf[6]<<8) | buf[7];
 		if (start_code!=0x000001bd) {
