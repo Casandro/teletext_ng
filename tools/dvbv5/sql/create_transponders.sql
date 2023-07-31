@@ -19,3 +19,13 @@ CREATE TABLE transponders (
 
 CREATE UNIQUE INDEX transponders_id ON transponders (sat_number, frequency, polarization, symbol_rate, stream_id);
 
+CREATE TABLE transponder_stats(
+	id INT NOT NULL AUTO_INCREMENT,
+	transponder INT,
+	result INT,
+	duration double,
+	time datetime,
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX transponder on transponder_stats(transponder);
