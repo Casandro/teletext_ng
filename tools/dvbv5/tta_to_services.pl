@@ -25,41 +25,44 @@ opendir(my $transponderdir,  $ddir);
 
 while (readdir $transponderdir) {
 	my $transponder=$_;
-	opendir (my $sdir, $ddir."/".$transponder);
-	while (readdir $sdir) {
-		my $service=$_;
-		if ($service=~/(0x[0-9a-fA-f]{4})\.tta$/) {
-			my $filename=$ddir."/".$transponder."/".$service;
-			my $pid=hex($1);
-			$find_service->execute($transponder, $pid) or die "Error during find_service";
-			(my $id)=$find_service->fetchrow_array();
-			if (defined $id) {
-			} else {
-				my $header=`dd if=$filename bs=1 skip=4096  2> /dev/null | ../get_name`;
-				chomp($header);
-				$create_service->execute($transponder, $pid, $header);
-				$id=$create_service->{mysql_insertid};
-			}
-
-			$find_service_name->execute($id);
-			(my $service_name) = $find_service_name->fetchrow_array();
-
-			if (defined $service_name) {
-				mkdir $dest."/".$service_name;
-				my $ret=move($filename, $dest."/".$service_name);
-				print $id."    ".$filename."     ".$service_name." ".$ret."\n";
-				if ($ret==1) {
-					$update_service->execute($id);
+	my $lockfile=$ddir."/".$transponder."/lock";
+	unless ( -e $lockfile ) {
+		opendir (my $sdir, $ddir."/".$transponder);
+		while (readdir $sdir) {
+			my $service=$_;
+			if ($service=~/(0x[0-9a-fA-f]{4})\.tta$/) {
+				my $filename=$ddir."/".$transponder."/".$service;
+				my $pid=hex($1);
+				$find_service->execute($transponder, $pid) or die "Error during find_service";
+				(my $id)=$find_service->fetchrow_array();
+				if (defined $id) {
+				} else {
+					my $header=`dd if=$filename bs=1 skip=4096  2> /dev/null | ../get_name`;
+					chomp($header);
+					$create_service->execute($transponder, $pid, $header);
+					$id=$create_service->{mysql_insertid};
 				}
-			} else {
-				my $header=`dd if=$filename bs=1 skip=4096  2> /dev/null | ../get_name`;
-				chomp($header);
-				$update_header->execute($header,$id);
-			}
 
+				$find_service_name->execute($id);
+				(my $service_name) = $find_service_name->fetchrow_array();
+
+				if (defined $service_name) {
+					mkdir $dest."/".$service_name;
+					my $ret=move($filename, $dest."/".$service_name);
+					print $id."    ".$filename."     ".$service_name." ".$ret."\n";
+					if ($ret==1) {
+						$update_service->execute($id);
+					}
+				} else {
+					my $header=`dd if=$filename bs=1 skip=4096  2> /dev/null | ../get_name`;
+					chomp($header);
+					$update_header->execute($header,$id);
+				}
+
+			}
 		}
+		closedir($sdir);
 	}
-	closedir($sdir);
 }
 
 closedir($transponderdir);
