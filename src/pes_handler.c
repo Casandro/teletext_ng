@@ -90,6 +90,18 @@ void handle_pes(pes_handler_t *p, const char *prefix)
 	}
 }
 
+int ts_get_pid(const uint8_t *buf)
+{
+	uint32_t header=buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
+	int sync=(header>>24) & 0xff;
+	if (sync!=0x47) return -1;
+	int transport_error_indicator=(header >> 23) & 0x1;
+	if (transport_error_indicator==1) return -1;
+	//int transport_priority=(header >> 21) &0x1;
+	int pid=(header >> 8) & 0x1fff;
+	return pid;
+}
+
 int process_ts_packet(const uint8_t *buf, const char *prefix)
 {
 	int n;
