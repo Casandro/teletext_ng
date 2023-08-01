@@ -41,11 +41,13 @@ int main(int argc, char *argv[])
 	FILE *input=stdin;
 	char *lockfile=NULL;
 	char *prefix=NULL;
+	char *blockpids=NULL;
 	for (n=1; n<argc; n++){
 		if (strcasecmp(argv[n], "--TS")==0) mode=1; else
 		if (strcasecmp(argv[n], "--T42")==0) mode=2; else
 		if (strcasecmp(argv[n], "--STOP")==0) stop=1; else
 		if (strncmp(argv[n], "-p", 2)==0) prefix=argv[n]+2; else
+		if (strncmp(argv[n], "-b", 2)==0) blockpids=argv[n]+2; else
 		if (strncmp(argv[n], "-l", 2)==0) lockfile=argv[n]+2; else
 		{
 			printf("Trying file %s\n", argv[n]);
@@ -71,12 +73,35 @@ int main(int argc, char *argv[])
 	}
 	int cnt=0;
 	if (mode==1) { //Handle a TS file
+		int8_t pids_enabled[4096];
+		for (int n=0; n<4096; n++) pids_enabled[n]=1;
+		if (blockpids!=NULL && strcmp(blockpids,"NULL")!=0) {
+			printf("Blockpids: %s\n", blockpids);
+			//todo: parse blockpids
+			//Set pids_enabled to 0 for those pids
+			char *p=blockpids;
+			while (*p!=0) {
+				char *endptr=NULL;
+				int pid=strtol(p,&endptr,10);
+				if ((pid<0) || (pid>=4096)) {
+					printf("Invalid PID %s (%s)\n", p, blockpids);
+					continue;
+				} else {
+					pids_enabled[pid]=0;
+					printf("ignoring PID: %d\n", pid);
+				}
+				if (*endptr==0) p=endptr; else p=endptr+1;
+			}
+		}	
 		FILE *f=NULL;
 		uint8_t packet[188];
 		while (fread(packet, sizeof(packet),1 ,input)>0) {
 			if ((f==NULL) && (lockfile!=NULL)) f=fopen(lockfile, "w");
 			if ( (f!=NULL) && (cnt%1000==0)) fprintf(f,"%d\n", cnt);
 			cnt=cnt+1;
+			int pid=ts_get_pid(packet);
+			if (pid<0) continue;
+			if (pids_enabled[pid]==0) continue;
 			process_ts_packet(packet, prefix);
 			if (cnt>10000) {
 				cnt=0;

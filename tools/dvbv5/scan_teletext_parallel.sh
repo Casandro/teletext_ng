@@ -22,10 +22,13 @@ TS_TELETEXT=`realpath ../../src/ts_teletext`
 
 
 $SCRIPTDIR/dvbv5-transponders_from_sql.pl > $channels
-for cnt in {0..9}
+for cnt in {0..3}
 do
 	mux=`$SCRIPTDIR/use_transponder.pl $adapter GET`
 	echo "Going forward with Transponder $mux $return_code"
+	
+	blockpids=`echo "select blockpids from transponder where id=$mux" | mysql -uteletext -pteletext teletext`
+
 	mkdir -p $OUTDIR/$mux
 	rm -r $OUTDIR/done
 
@@ -38,10 +41,10 @@ do
 	PREFIX=$DIR/`date -u -Iseconds`-
 	
 	start=`date +%s.%N` 
-	dvbv5-zap -t 3600 -c $channels -w-1 -a$adapter -W 250 -P -o $FIFO "$mux" &
+	dvbv5-zap -t 7200 -c $channels -w-1 -a$adapter -W 250 -P -o $FIFO "$mux" &
 	zappid=$!
 	sleep 0.5
-       	$TS_TELETEXT --ts --stop -l$LOCKFILE -p$PREFIX $FIFO &
+       	$TS_TELETEXT --ts --stop -l$LOCKFILE -p$PREFIX -b$blockpids $FIFO &
 	tspid=$!
 
 	sleep 0.5
@@ -71,18 +74,13 @@ do
 	else
 		echo "Timeout! killing $tspid and $zappid"
 		return_code=555
+		$SCRIPTDIR/use_transponder.pl $adapter ERROR
 		kill $tspid
 		kill $zappid
-		exit
 	fi
 	stop=`date +%s.%N`
 	echo "Finished code $return_code"
 	duration=`echo $stop-$start | bc` 
-	if (( return_code != 0 ))
-	then
-		echo "Tuning failed for $mux"
-		$SCRIPTDIR/use_transponder.pl $adapter ERROR
-	fi
 	echo "insert into transponder_stats (transponder, result, duration, time, worker) VALUES ($mux, $return_code, $duration, NOW(),$adapter);" | mysql -uteletext -pteletext teletext
 	echo "Vorheriger Transponder: $mux"
 
