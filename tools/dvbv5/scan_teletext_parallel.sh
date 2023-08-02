@@ -22,15 +22,15 @@ TS_TELETEXT=`realpath ../../src/ts_teletext`
 
 
 $SCRIPTDIR/dvbv5-transponders_from_sql.pl > $channels
-for cnt in {0..3}
-do
+#for cnt in {0..3}
+#do
 	mux=`$SCRIPTDIR/use_transponder.pl $adapter GET`
 	echo "Going forward with Transponder $mux $return_code"
 	
-	blockpids=`echo "select blockpids from transponder where id=$mux" | mysql -uteletext -pteletext teletext`
+	blockpids=`echo "select blockpids from transponders where id=$mux" | mysql -uteletext -pteletext teletext | grep -v "blockpids"`
+	echo "Blockpids=$blockpids"
 
 	mkdir -p $OUTDIR/$mux
-	rm -r $OUTDIR/done
 
 	DIR=$OUTDIR/$mux
 	FIFO=$DIR/fifo
@@ -84,5 +84,5 @@ do
 	echo "insert into transponder_stats (transponder, result, duration, time, worker) VALUES ($mux, $return_code, $duration, NOW(),$adapter);" | mysql -uteletext -pteletext teletext
 	echo "Vorheriger Transponder: $mux"
 
-done
+#done
 rm $channels
