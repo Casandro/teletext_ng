@@ -40,7 +40,8 @@ while (readdir $transponderdir) {
 					my $header=`dd if=$filename bs=1 skip=4096  2> /dev/null | ../get_name`;
 					chomp($header);
 					$create_service->execute($transponder, $pid, $header);
-					continue
+					print "Created Service: ".$transponder." ".$pid." ".$header."\n";
+					next;
 				}
 
 				$find_service_name->execute($id);
