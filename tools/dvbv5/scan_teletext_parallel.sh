@@ -82,6 +82,14 @@ $SCRIPTDIR/dvbv5-transponders_from_sql.pl > $channels
 	echo "Finished code $return_code"
 	duration=`echo $stop-$start | bc` 
 	echo "insert into transponder_stats (transponder, result, duration, time, worker) VALUES ($mux, $return_code, $duration, NOW(),$adapter);" | mysql -uteletext -pteletext teletext
+	if [ -e ./tta_to_services.pl ]
+	then
+		./tta_to_services.pl
+	fi
+	if [ -e ./move_to_server.sh ]
+	then
+		./move_to_server.sh
+	fi
 	echo "Vorheriger Transponder: $mux"
 
 #done
