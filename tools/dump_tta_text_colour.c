@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 		//printf("%d %02d ", magazine, row);
 		if (row==0) {
 			int page=de_hamm(packet[3])<<4 | de_hamm(packet[2]);
-			int sub=(de_hamm(packet[4])) | (de_hamm(packet[6])<<4) | (de_hamm(packet[6])<<8) | (de_hamm(packet[7])<<12);
+			int sub=(de_hamm(packet[4])) | (de_hamm(packet[5])<<4) | (de_hamm(packet[6])<<8) | (de_hamm(packet[7])<<12);
 			int contr=de_hamm(packet[9])<<4 | de_hamm(packet[8]);
 			int subpage=sub&0x3f7f;
 			int fullpage=magazine<<8|page;
