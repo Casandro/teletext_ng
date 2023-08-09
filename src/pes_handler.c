@@ -1,6 +1,7 @@
 #include "pes_handler.h"
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "page.h"
 #include "hamming.h"
@@ -8,19 +9,11 @@
 
 #define PIDNUM (0x2000)
 
-#define PESHSIZE (64*1024)
 
 #define TSSIZE (188)
 
-typedef struct {
-	int pid;
-	all_pages_t *ap;
-	uint8_t pes[PESHSIZE];
-	int write_pointer;
-	int continuity_counter;
-} pes_handler_t;
-
 pes_handler_t *pes_handler[PIDNUM]={NULL};
+void print_full_status();
 
 
 pes_handler_t *new_pes_handler(const int pid)
@@ -75,12 +68,12 @@ void handle_pes(pes_handler_t *p, const char *prefix)
 				char *name=calloc(1,len);
 				snprintf(name, len, "%s0x%04x.tta", prefix, p->pid);
 				p->ap=new_allpages(name);
-				printf("New service %s", name);
+				//printf("New service %s", name);
 				free(name);
 			}
 
-			so_move_to_position(p->ap, 0);
-			so_end_line(p->ap, 0);
+			//so_move_to_position(p->ap, 0);
+			//so_end_line(p->ap, 0);
 		}
 		uint8_t line[42];
 		int m;
@@ -88,6 +81,7 @@ void handle_pes(pes_handler_t *p, const char *prefix)
 		int res=handle_t42_data(p->ap, line);
 		if (res==0) cnt=cnt+1;
 	}
+	print_full_status();
 }
 
 int ts_get_pid(const uint8_t *buf)
@@ -177,3 +171,22 @@ int are_pes_handlers_done()
 	}
 	return 1;
 }
+
+time_t last_update=0;
+
+void print_full_status()
+{
+	printf("\e[1;1H");//\e[2J");
+	time_t t=time(NULL);
+	if (t==last_update) return;
+	last_update=t;
+	for (int pid=0; pid<PIDNUM; pid++) {
+		if (pes_handler[pid]==NULL) continue;
+		if (pes_handler[pid]->ap==NULL) continue;
+		print_service_status(pes_handler[pid]->ap, pid, stdout, "\e[K\n");
+	}
+	printf("\e[J");
+	fflush(stdout);
+}
+
+

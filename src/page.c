@@ -65,7 +65,7 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 	if (page->subpages[spn]==NULL) {
 		gettimeofday(&ap->last_change, NULL);
 		if (spn>page->maxsubcode) page->maxsubcode=spn;
-		so_move_to_position(ap,0);
+		/*so_move_to_position(ap,0);
 		printf("%s New Page: %03x-%04x ", ap->name, pageno_to_num(page->number), subcode);
 		int n;
 		for (n=10; n<42; n++) if ((data[n]&0x7f)<' ') printf(" "); else printf("%c", data[n]&0x7f);
@@ -80,8 +80,9 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 			}
 		}
 		if (spn>=page->maxsubcode) printf("|");
-		so_end_line(ap,0);
+		//so_end_line(ap,0);
 		//printf("\n");
+		*/
 		page->subpages[spn]=malloc(sizeof(page_t));
 		memset(page->subpages[spn], 0, sizeof(page_t));
 	}
@@ -161,6 +162,16 @@ int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno,
 	int page=(fullpageno>>16);
 	if (page>0x800) return -1;
 	int subc=fullpageno&0x3f7f;
+	if (row==0) {
+		p->last_pageno=page;
+		for (int n=0; n<32; n++) {
+			uint8_t c=(data[n+10] & 0x7f);
+			if (c<' ') c=' ';
+			if (c>=0x7f) c=' ';
+			p->last_header[n]=c;
+		}
+		p->last_header[32]=0;
+	}
 	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, data);
 	if (row>29) return -1;
 	if ((page&0xff)==0xff) return add_packet_to_pages_(p, row, page , 0, data);
@@ -181,9 +192,9 @@ int allpages_done(all_pages_t *p)
 	int ndiff=now.tv_sec-p->last_note.tv_sec;
 	int do_output=0;
 	if ((ndiff > 0)) {
-		so_move_to_position(p,1);
-		printf("\t%s Last change %d s ago", p->name, tdiff);
-		so_end_line(p, 1);
+		//so_move_to_position(p,1);
+		//printf("\t%s Last change %d s ago", p->name, tdiff);
+		//so_end_line(p, 1);
 		gettimeofday(&p->last_note, NULL);
 		do_output=1;
 	}
@@ -199,18 +210,18 @@ int allpages_done(all_pages_t *p)
 			if (res<2) {
 				if (missing==0) {
 					if (do_output!=0) {
-						so_move_to_position(p,2);
-						printf("\t%s Waiting for page(s): %03x", p->name, pageno_to_num(n));
+						//so_move_to_position(p,2);
+						//printf("\t%s Waiting for page(s): %03x", p->name, pageno_to_num(n));
 					}
 					missing=1;
 				} else if (missing>15) {
 					if (do_output!=0) {
-						printf(", ...");
-						so_end_line(p,2);
+						//printf(", ...");
+						//so_end_line(p,2);
 					}
 					return 0;
 				} else {
-					if (do_output!=0) printf(", %03x", pageno_to_num(n));
+					//if (do_output!=0) printf(", %03x", pageno_to_num(n));
 					missing=missing+1;
 				}
 			}
@@ -218,7 +229,7 @@ int allpages_done(all_pages_t *p)
 	}
 	if (missing>0) {
 		if (do_output!=0) {
-			so_end_line(p,2);
+			//so_end_line(p,2);
 		}
 		return 0;
 	}
@@ -274,7 +285,7 @@ all_pages_t *new_allpages(const char *name)
 
 int finish_allpages(all_pages_t *p)
 {
-	so_end();
+	//so_end();
 	int cnt=write_all_pages(p);
 	free(p);
 	return cnt;
