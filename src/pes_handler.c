@@ -172,14 +172,24 @@ int are_pes_handlers_done()
 	return 1;
 }
 
-time_t last_update=0;
+struct timeval *last_update=NULL;
 
 void print_full_status()
 {
+	if (last_update==NULL) {
+		last_update=calloc(sizeof(struct timeval),1);
+	}
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	long int tdiff=(now.tv_sec-last_update->tv_sec)*1000+(now.tv_usec-last_update->tv_usec)/1000;
+	if (tdiff<40) return;
+	last_update->tv_sec=now.tv_sec;
+	last_update->tv_usec=now.tv_usec;
+
 	printf("\e[1;1H");//\e[2J");
-	time_t t=time(NULL);
-	if (t==last_update) return;
-	last_update=t;
+	//time_t t=time(NULL);
+	//if (t==last_update) return;
+	//last_update=t;
 	for (int pid=0; pid<PIDNUM; pid++) {
 		if (pes_handler[pid]==NULL) continue;
 		if (pes_handler[pid]->ap==NULL) continue;
