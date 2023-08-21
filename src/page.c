@@ -96,6 +96,7 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 int mainpage_done(const mainpage_t *page)
 {
 	if (page==NULL) return 2;
+	if ((page->number&0x0ff)>0x99) return 2; //If page is not a real page, it's full
 	//If this is a single page, return
 	if (page->subpages[0]!=NULL) return page->subpages[0]->cnt;
 	//Count the highest yet received subpage
