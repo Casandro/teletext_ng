@@ -10,6 +10,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "consts.h"
+
 #define PLEN (42)
 
 
@@ -73,8 +75,8 @@ int main(int argc, char *argv[])
 	}
 	int cnt=0;
 	if (mode==1) { //Handle a TS file
-		int8_t pids_enabled[4096];
-		for (int n=0; n<4096; n++) pids_enabled[n]=1;
+		int8_t pids_enabled[PIDNUM];
+		for (int n=0; n<PIDNUM; n++) pids_enabled[n]=1;
 		if (blockpids!=NULL && strcmp(blockpids,"NULL")!=0) {
 			printf("Blockpids: %s\n", blockpids);
 			//todo: parse blockpids
@@ -94,6 +96,7 @@ int main(int argc, char *argv[])
 			}
 		}	
 		FILE *f=NULL;
+		int pktcnt=0;
 		uint8_t packet[188];
 		while (fread(packet, sizeof(packet),1 ,input)>0) {
 			if ((f==NULL) && (lockfile!=NULL)) f=fopen(lockfile, "w");
@@ -102,12 +105,17 @@ int main(int argc, char *argv[])
 			int pid=ts_get_pid(packet);
 			if (pid<0) continue;
 			if (pids_enabled[pid]==0) continue;
+			pktcnt=pktcnt+1;
 			process_ts_packet(packet, prefix);
-			if (cnt>10000) {
+			if (cnt>100000) {
 				cnt=0;
-				if ((stop==1) && (are_pes_handlers_done()==1) ) break;
+				if ((stop==1) && (are_pes_handlers_done()==1) ) {
+					printf("finishing\n");
+					break;
+				}
 			}
 		}
+		printf("%d packets processed\n", pktcnt);
 		finish_ts_packets();
 		if (f!=NULL) fclose(f);
 		if (lockfile!=NULL) unlink(lockfile);

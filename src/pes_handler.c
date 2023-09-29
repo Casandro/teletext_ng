@@ -6,11 +6,8 @@
 #include "page.h"
 #include "hamming.h"
 #include "status_output.h"
+#include "consts.h"
 
-#define PIDNUM (0x2000)
-
-
-#define TSSIZE (188)
 
 pes_handler_t *pes_handler[PIDNUM]={NULL};
 void print_full_status();
@@ -121,6 +118,7 @@ int process_ts_packet(const uint8_t *buf, const char *prefix)
 		pes_handler[pid]->continuity_counter=(continuity_counter+1)&0x0f;
 		return 0;
 	}
+
 	pes_handler[pid]->continuity_counter=(continuity_counter+1)&0x0f;
 
 	if (payload_unit_start_indicator==1) {

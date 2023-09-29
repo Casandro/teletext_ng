@@ -41,13 +41,12 @@ $SCRIPTDIR/dvbv5-transponders_from_sql.pl > $channels
 	PREFIX=$DIR/`date -u -Iseconds`-
 	
 	start=`date +%s.%N` 
-	dvbv5-zap -t 7200 -c $channels -w-1 -a$adapter -W 250 -P -o $FIFO "$mux" &
+	dvbv5-zap -t 8000 -c $channels -w-1 -a$adapter -W 250 -P -o $FIFO "$mux" &
 	zappid=$!
 	sleep 0.5
        	$TS_TELETEXT --ts --stop -l$LOCKFILE -p$PREFIX -b$blockpids $FIFO &
 	tspid=$!
 
-	sleep 0.5
 
 	res=0
 	echo "Waiting for lock file"	
