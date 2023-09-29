@@ -18,7 +18,9 @@ if ($task eq "GET") {
 	my ($id)=$q->fetchrow_array();
 	$dbh->do("UPDATE transponders set in_use_by=? WHERE id=?", undef, $worker, $id);
 	print $id;
-} if ($task eq "ERROR") {
+	exit 1
+} 
+if ($task eq "ERROR") {
 	$dbh->do("UPDATE transponders set in_use_by=-1, weight=weight-10 WHERE in_use_by=?", undef, $worker);
 	
 }else {
