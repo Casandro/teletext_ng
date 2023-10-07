@@ -234,9 +234,10 @@ void print_bsdp(const uint8_t *packet)
 void print_service_status(const all_pages_t *ap, const int pes, FILE *f, const char *eol)
 {
 	//First line
-	fprintf(f, "Pid: 0x%04x, %03x-%s %s", pes, ap->last_pageno, ap->last_header,eol);
+	fprintf(f, "Pid: 0x%04x, %03x-%s ", pes, ap->last_pageno, ap->last_header);
 	fprintf(f, "  %d ", ap->bsdp_cnt);
 	print_bsdp(ap->last_bsdp);
+	fprintf(f, "%s", eol);
 	print_missing_pages(ap, f);
 	fprintf(f,"%s",eol);
 	print_missing_page_headers(ap, f, eol);
