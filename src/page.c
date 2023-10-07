@@ -65,24 +65,6 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 	if (page->subpages[spn]==NULL) {
 		gettimeofday(&ap->last_change, NULL);
 		if (spn>page->maxsubcode) page->maxsubcode=spn;
-		/*so_move_to_position(ap,0);
-		printf("%s New Page: %03x-%04x ", ap->name, pageno_to_num(page->number), subcode);
-		int n;
-		for (n=10; n<42; n++) if ((data[n]&0x7f)<' ') printf(" "); else printf("%c", data[n]&0x7f);
-		printf(" ");
-		int m;
-		for (m=0; m<page->maxsubcode; m++) {
-			if (page->subpages[m]==NULL) {
-				if (m==spn) printf("|"); else printf("."); 
-			}else {
-				if (page->subpages[m]->cnt>9) printf("X"); 
-				else printf("%d", page->subpages[m]->cnt);
-			}
-		}
-		if (spn>=page->maxsubcode) printf("|");
-		//so_end_line(ap,0);
-		//printf("\n");
-		*/
 		page->subpages[spn]=malloc(sizeof(page_t));
 		memset(page->subpages[spn], 0, sizeof(page_t));
 	}
@@ -174,6 +156,7 @@ int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno,
 		p->last_header[32]=0;
 	}
 	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, data);
+	if (row==30) return add_packet_to_pages_(p, row, page | 0xff, 0, data); //Store Broadcast Service Data Packet
 	if (row>29) return -1;
 	if ((page&0xff)==0xff) return add_packet_to_pages_(p, row, page , 0, data);
 	return add_packet_to_pages_(p, row, page, subc, data);
