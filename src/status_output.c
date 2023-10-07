@@ -204,6 +204,7 @@ void print_bsdp(const uint8_t *packet)
 	if (mpag<0) return;
 	int magazine=mpag&0x07;
 	int row=mpag>>3;
+	printf("%d %d ", magazine, row);
 	if (magazine!=0) return;
 	if (row!=30) return;
 	int dc=de_hamm8(packet[2]);
