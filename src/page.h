@@ -35,6 +35,7 @@ typedef struct{
 	int status_line;
 	int last_pageno;
 	char last_header[33];
+	uint8_t last_bsdp[42];
 } all_pages_t;
 
 int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno, const uint8_t *data);

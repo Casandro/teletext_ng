@@ -1,5 +1,6 @@
 #include "status_output.h"
 #include <stdio.h>
+#include "hamming.h"
 
 #define SO_LINES_PER_TS (3)
 
@@ -184,30 +185,58 @@ void print_missing_page_headers(const all_pages_t *ap, FILE *f, const char *eol)
 	}
 }
 
+int decode_mbcd(const uint8_t x)
+{
+        int a=(x>>4) -1;
+        if (a<0) return -1;
+        int b=(x&0xf) -1;
+        if (b<0) return -1;
+        return a<<4 | b;
+}
+
+
+
+void print_bsdp(const uint8_t *packet)
+{
+	int mpag=de_hamm8(packet[0]);
+	if (mpag<0) return;
+	int magazine=mpag&0x07;
+	int row=mpag>>3;
+	if (magazine!=0) return;
+	if (row!=30) return;
+	//int dc=de_hamm8(packet[2]);
+	int ini_page_unit=de_hamm8(packet[3]);
+	int ini_page_tens=de_hamm8(packet[4]);
+	int subcode_1=de_hamm8(packet[5]);
+	int subcode_2=de_hamm8(packet[6]);
+	int subcode_3=de_hamm8(packet[7]);
+	int subcode_4=de_hamm8(packet[8]);
+	int ini_mag=(subcode_4>>1 & 0xe) | (subcode_2>>3);
+	int ini_page=ini_mag<<8 | ini_page_tens<<4 | ini_page_unit;
+	int ini_subpage=(subcode_4<<12 | subcode_3<<8 | subcode_2<<4 | subcode_1) & 0x3f7f;
+	printf("IP: %03x-%04x ", ini_page, ini_subpage);
+	int network_identification_code=de_hamm8(packet[9])<<8 | de_hamm8(packet[10]);
+	printf("NICe: %04x ", network_identification_code);
+	int time_offset_code=packet[11];
+	double offset=(time_offset_code & 0x3e)*0.25;
+	if ((time_offset_code&0x40)!=0) offset=-offset;
+	printf("TOC: %02x, %lf hours ", time_offset_code, offset);
+	int mjd=decode_mbcd(packet[12]+0x10)<<16 | decode_mbcd(packet[13])<<8 | decode_mbcd(packet[14]);
+	printf("MJD: %05x ", mjd);
+	printf("UTC: %02x:%02x:%02x ", decode_mbcd(packet[15]), decode_mbcd(packet[16]), decode_mbcd(packet[17]));
+	printf("Status Display: '");
+	for(int n=22; n<42; n++) printf("%c", packet[n]&0x7f);
+	printf("' ");
+	
+
+}
+
 void print_service_status(const all_pages_t *ap, const int pes, FILE *f, const char *eol)
 {
 	//First line
-	fprintf(f, "Pid: 0x%04x, Last-Header: %03x-%s %s", pes, ap->last_pageno, ap->last_header,eol);
-	/*fprintf(f, "  ");
-	print_magstate(ap, 1, f); 
-	print_magstate(ap, 2, f);
-	fprintf(f,"%s",eol);
-	//second line
+	fprintf(f, "Pid: 0x%04x, %03x-%s %s", pes, ap->last_pageno, ap->last_header,eol);
 	fprintf(f, "  ");
-	print_magstate(ap, 3, f);
-	print_magstate(ap, 4, f);
-	fprintf(f,"%s",eol);
-	//third line
-	fprintf(f, "  ");
-	print_magstate(ap, 5, f);
-	print_magstate(ap, 6, f);
-	fprintf(f,"%s", eol);
-	//fourth line
-	fprintf(f, "  ");
-	print_magstate(ap, 7, f);
-	print_magstate(ap, 0, f);
-	fprintf(f,"%s", eol);*/
-	fprintf(f, "  ");
+	print_bsdp(ap->last_bsdp);
 	print_missing_pages(ap, f);
 	fprintf(f,"%s",eol);
 	print_missing_page_headers(ap, f, eol);

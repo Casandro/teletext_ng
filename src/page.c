@@ -156,7 +156,10 @@ int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno,
 		p->last_header[32]=0;
 	}
 	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, data);
-	if (row==30) return add_packet_to_pages_(p, row, page | 0xff, 0, data); //Store Broadcast Service Data Packet
+	if (row==30) {
+		memcpy(p->last_bsdp, data, 42);
+		return add_packet_to_pages_(p, row, page | 0xff, 0, data); //Store Broadcast Service Data Packet
+	}
 	if (row>29) return -1;
 	if ((page&0xff)==0xff) return add_packet_to_pages_(p, row, page , 0, data);
 	return add_packet_to_pages_(p, row, page, subc, data);
