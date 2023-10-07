@@ -168,6 +168,8 @@ void print_missing_page_headers(const all_pages_t *ap, FILE *f, const char *eol)
 			}
 			if (max_subpage==min_subpage) continue;
 			fprintf(f, "  ");
+			print_pageno(mainpage,f);
+			fprintf(f, " ");
 			print_header(ap->pages[mainpage]->subpages[min_existing_subpage], f);
 			fprintf(f, " Subpages: ");
 			for (int subpage=min_subpage; subpage<=max_subpage; subpage++) {
@@ -198,13 +200,14 @@ int decode_mbcd(const uint8_t x)
 
 void print_bsdp(const uint8_t *packet)
 {
-	int mpag=de_hamm8(packet[0]);
+	int mpag=de_hamm8_8(packet);
 	if (mpag<0) return;
 	int magazine=mpag&0x07;
 	int row=mpag>>3;
 	if (magazine!=0) return;
 	if (row!=30) return;
-	//int dc=de_hamm8(packet[2]);
+	int dc=de_hamm8(packet[2]);
+	printf("DC: %d ", dc);
 	int ini_page_unit=de_hamm8(packet[3]);
 	int ini_page_tens=de_hamm8(packet[4]);
 	int subcode_1=de_hamm8(packet[5]);

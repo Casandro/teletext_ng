@@ -156,11 +156,6 @@ int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno,
 		p->last_header[32]=0;
 	}
 	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, data);
-	if (row==30) {
-		memcpy(p->last_bsdp, data, 42);
-		p->bsdp_cnt=p->bsdp_cnt+1;
-		return add_packet_to_pages_(p, row, page | 0xff, 0, data); //Store Broadcast Service Data Packet
-	}
 	if (row>29) return -1;
 	if ((page&0xff)==0xff) return add_packet_to_pages_(p, row, page , 0, data);
 	return add_packet_to_pages_(p, row, page, subc, data);
@@ -299,6 +294,12 @@ int handle_t42_data(all_pages_t *p, const uint8_t *line)
 		if (pn==0xff) subpage=0;
 		fullpageno=(magazine<<24) | (pn<<16) | subpage;
 		p->pageno[magazine]=fullpageno;
+	}
+
+	if ((row==30) && (magazine=0)) {
+		memcpy(p->last_bsdp, line, 42);
+		p->bsdp_cnt=p->bsdp_cnt+1;
+		return add_packet_to_pages_(p, row, 0x0ff, 0, line); //Store Broadcast Service Data Packet
 	}
 
 	int page=(fullpageno>>16);
