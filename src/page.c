@@ -158,6 +158,7 @@ int add_packet_to_pages(all_pages_t *p, const uint8_t row, const int fullpageno,
 	if (row==29) return add_packet_to_pages_(p, row, page | 0xff, 0, data);
 	if (row==30) {
 		memcpy(p->last_bsdp, data, 42);
+		p->bsdp_cnt=p->bsdp_cnt+1;
 		return add_packet_to_pages_(p, row, page | 0xff, 0, data); //Store Broadcast Service Data Packet
 	}
 	if (row>29) return -1;
