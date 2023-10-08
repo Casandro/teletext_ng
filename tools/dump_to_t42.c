@@ -33,7 +33,6 @@ int dump_page(const int pn, const int16_t *index, FILE *f)
 	if (pn>=PAGENUM) return -1;
 	int start=0;
 	int n;
-	fprintf(stderr, "Dumping page: %03x\n", pn+0x100);
 	for (n=0; n<pn; n++) start=start+index[n];
 	if (fseek(f, PAGENUM*2+start*42, SEEK_SET)!=0) {
 		fprintf(stderr, "Couldn't seek\n");

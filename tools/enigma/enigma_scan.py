@@ -23,9 +23,10 @@ root=tree
 for child in root:
     chname=child[0].text.strip().replace(":","_")
     chout=outdir+"/"+chname+"/";
-    os.system("mkdir -p "+chout);
     print(child[1].text+" to "+chout)
-    os.system("(timeout 20 wget -o /dev/null --read-timeout 10 -O - http://192.168.5.12:8001/"+child[0].text+") | ../../src/ts_teletext --ts --stop -p"+chout)
+    if not os.path.isdir(chout):
+        os.system("mkdir -p "+chout);
+        os.system("(timeout 6 wget -o /dev/null --read-timeout 5 -O - http://192.168.5.12:8001/"+child[0].text+") | ../../src/ts_teletext --ts --stop -p"+chout)
 #    with os.scandir(".") as it:
 #        for entry in it:
 #            if entry.name.startswith("0x") and entry.is_file:

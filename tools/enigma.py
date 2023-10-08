@@ -27,5 +27,6 @@ for child in root:
     with os.scandir(".") as it:
         for entry in it:
             if entry.name.startswith("0x") and entry.is_file:
-                os.rename(entry.name,outdir+"/"+chname+" "+time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())+" "+entry.name);
-
+                os.rename(entry.name,outdir+"/"+chname+" "+time.strftime("%Y-%m-%dT%H:%M:%S+0000", time.gmtime())+"-"+entry.name);
+    os.system("cp "+outdir+"/* /daten/archiv/teletext/enigma/");
+    os.system("rsync --remove-source-files -av "+outdir+"/* teletext@teletext-submit.clarke-3.de:/daten_server/teletext/in/enigma/");
