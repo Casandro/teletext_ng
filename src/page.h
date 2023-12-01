@@ -13,7 +13,7 @@ typedef struct {
 } page_t;
 
 
-#define SUBPAGENUM (200)
+#define SUBPAGENUM (320)
 
 
 typedef struct {
