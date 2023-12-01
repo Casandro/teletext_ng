@@ -30,7 +30,7 @@ while (readdir $transponderdir) {
 		opendir (my $sdir, $ddir."/".$transponder);
 		while (readdir $sdir) {
 			my $service=$_;
-			if ($service=~/(0x[0-9a-fA-f]{4})\.tta$/) {
+			if ($service=~/(0x[0-9a-fA-f]{4})\.zip$/) {
 				my $filename=$ddir."/".$transponder."/".$service;
 				my $pid=hex($1);
 				$find_service->execute($transponder, $pid) or die "Error during find_service";
