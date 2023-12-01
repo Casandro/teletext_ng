@@ -12,7 +12,7 @@ DEPS   = $(SRCS:.c=.d)
 	all: $(PROG)
 
 $(PROG): $(OBJS)
-	$(CC) $(LDFLAGS) -lzip -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ -lzip
 
 %.o: %.c
 	$(CC) $(CFLAGS) -MMD -c $< -o $@ -lzip
