@@ -80,7 +80,7 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
 	int sc2=(subcode>> 4)&0x7;
        	int sc3=(subcode>> 8)&0xf;
 	int sc4=(subcode>>12)&0x3;
-	int spn=sc1+sc2*10+sc3*100+sc4*1000;
+	int spn=sc1+sc2*10+sc3*80+sc4*1000;
 	if (spn>=SUBPAGENUM) spn=0;
 	if (page->subpages[spn]==NULL) {
 		gettimeofday(&ap->last_change, NULL);
