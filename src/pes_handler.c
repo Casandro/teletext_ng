@@ -57,13 +57,13 @@ void handle_pes(pes_handler_t *p, const char *prefix)
 		if (p->ap==NULL) {
 			if (prefix==NULL) {
 				char name[16];
-				snprintf(name, sizeof(name)-1, "0x%04x.tta", p->pid);
+				snprintf(name, sizeof(name)-1, "0x%04x.zip", p->pid);
 				p->ap=new_allpages(name);
 				printf("New service %s", name);
 			} else {
-				size_t len=snprintf(NULL, 0, "%s0x%04x.tta", prefix, p->pid)+1;
+				size_t len=snprintf(NULL, 0, "%s0x%04x.zip", prefix, p->pid)+1;
 				char *name=calloc(1,len);
-				snprintf(name, len, "%s0x%04x.tta", prefix, p->pid);
+				snprintf(name, len, "%s0x%04x.zip", prefix, p->pid);
 				p->ap=new_allpages(name);
 				//printf("New service %s", name);
 				free(name);
