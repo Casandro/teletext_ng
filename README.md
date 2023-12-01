@@ -4,7 +4,10 @@ For Transport streams it will generate a series of files
 
 
 # Output file format
-The output file has the following syntax:
+
+It's a zip-file with individual t42 files.
+
+The old output file had the following syntax:
 * The first 4096 octets are 2048 entries of a table of signed 16 bit values. Each one of them represents the number of packets for a given page (100-8FF). Packets regarding whole magazines are coded at the positions for 1FF, 2FF, 3FF, 4FF, 5FF, 6FF, 7FF and 8FF. Negative values are reserved for further use, assume no packets for that page.
 * Then there is an array of 42 octet long packets. They are essentially the data part of the teletext packets. Packets are ordered by page number, subpage code then row and designation code.
 
@@ -21,4 +24,4 @@ To get all data for page 123 do the following:
 
 ## Other notes
 
-apt-get install ui-auto
+apt-get install ui-auto libzip-dev

@@ -25,23 +25,43 @@ int add_packet_to_page(page_t *page, const uint8_t row, const uint8_t *data)
 	if (page->rows[extrow]==NULL) {
 		page->rows[extrow]=malloc(42);
 	}
+	page->last_change=time(NULL);
 	memcpy(page->rows[extrow], data, 42);
 	if (row==0) page->cnt=page->cnt+1;
 	return 0;
 }
 
-int write_page(const page_t *page, FILE *f)
+int write_page(all_pages_t *ap, const int pageno, const page_t *page)
 {
 	if (page==NULL) return 0;
-	if (f==NULL) return 0;
 	int cnt=0;
-	int n;
-	for (n=0; n<RCNT; n++) {
+	for (int n=0; n<RCNT; n++) {
 		if (page->rows[n]!=NULL) {
-			fwrite(page->rows[n], 42, 1, f);
 			cnt=cnt+1;
 		}
 	}
+	size_t size=cnt*42;
+	uint8_t *buffer=calloc(cnt, 42);
+	int num=0;
+	for (int n=0; n<RCNT; n++) {
+		if (page->rows[n]!=NULL) {
+			memmove(buffer+num*42, page->rows[n], 42);
+			num=num+1;
+		}
+	}
+	int subpage=0;
+	if (page->rows[0]!=NULL) subpage=de_hamm8_16(page->rows[0]+4) & 0x3f7f;
+	zip_source_t *source=zip_source_buffer(ap->zipfile, buffer, size, 1);
+	char filename[16];
+	memset(filename, 0, sizeof(filename));
+	snprintf(filename, sizeof(filename)-1, "%03x-%04x.t42", pageno, subpage);
+	zip_uint64_t fileno=zip_file_add(ap->zipfile, filename, source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
+	zip_set_file_compression(ap->zipfile, fileno, ZIP_CM_STORE, 0);
+	/*struct tm *bdt=gmtime(&(page->last_change));
+	int dos_date=(bdt->tm_mday+1) | ((bdt->tm_mon+1)<<5) | ((bdt->tm_year+1900-1980) <<9);
+	int dos_time=(bdt->tm_sec/2) | ((bdt->tm_min)<<5) | (bdt->tm_hour<<11);
+	zip_file_set_dostime(ap->zipfile, fileno, dos_time, dos_date, 0);*/
+	zip_file_set_mtime(ap->zipfile, fileno, page->last_change, 0);
 	return cnt;
 }
 
@@ -95,15 +115,13 @@ int mainpage_done(const mainpage_t *page)
 	return maxcnt;
 }
 
-int write_mainpage(const mainpage_t *page, FILE *f)
+int write_mainpage(all_pages_t *ap, const mainpage_t *page, const int mainpage)
 {
-	if (f==NULL) return 0;
 	if (page==NULL) return 0;
 	int cnt=0;
-	int n;
-	for (n=0; n<SUBPAGENUM; n++) {
+	for (int n=0; n<SUBPAGENUM; n++) {
 		if (page->subpages[n]!=NULL) {
-			cnt=cnt+write_page(page->subpages[n], f);
+			cnt=cnt+write_page(ap, mainpage, page->subpages[n]);
 		}
 	}
 	return cnt;
@@ -220,33 +238,37 @@ int allpages_done(all_pages_t *p)
 }
 
 
-int write_all_pages(const all_pages_t *p)
+int write_all_pages(all_pages_t *p)
 {
 	if (p==NULL) return 0;
 	int cnt=0;
-	int n;
-	int16_t index[PAGENUM];
 	printf("    ");
-	for (n=0; n<PAGENUM; n++) {
+	for (int n=0; n<PAGENUM; n++) {
 		int pn=(n+0x100)&0x7ff;
 		int c=count_packets_in_mainpage(p->pages[pn]);
-		index[n]=c;
 		cnt=cnt+c;
 	}
 
 	if (cnt<=0) return 0;
 	printf("File '%s' ...", p->name);
-	FILE *f=fopen(p->name, "w");
-	if (f==NULL) return 0;
-	fwrite(index, sizeof(index) ,1 , f);
+	int err=0;
+	p->zipfile=zip_open(p->name, ZIP_CREATE | ZIP_EXCL, &err);
+	if (p->zipfile==NULL) {
+		zip_error_t error;
+		zip_error_init_with_code(&error, err);
+		printf("cannot open zip archive: %s\n", zip_error_strerror(&error));
+		zip_error_fini(&error);
+		return -1;	
+	}	
 	cnt=0;
-	for (n=0; n<PAGENUM; n++) {
+	for (int n=0; n<PAGENUM; n++) {
 		int pn=(n+0x100)&0x7ff;
+		int pagenumber=(n+0x100);
 		if (p->pages[pn]!=NULL) {
-			cnt=cnt+write_mainpage(p->pages[pn], f);
+			cnt=cnt+write_mainpage(p, p->pages[pn], pagenumber);
 		}
 	}
-	fclose(f);
+	zip_close(p->zipfile);
 	printf(" %d datasets written\n", cnt);
 	return cnt;
 }

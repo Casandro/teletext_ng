@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	}
 	if (mode==2) { //Handle a T42 file
 		uint8_t line[42];
-		all_pages_t *ap=new_allpages("out");
+		all_pages_t *ap=new_allpages("out.zip");
 		while (fread(line, sizeof(line),1 ,input)>0) {
 			handle_t42_data(ap, line);
 		}
