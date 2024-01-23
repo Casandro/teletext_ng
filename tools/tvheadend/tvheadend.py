@@ -14,18 +14,28 @@ base_url_auth="http://teletext:teletext@127.0.0.1:9981/"
 
 url=base_url+"api/raw/export?class=dvb_mux"
 
+try:
+   with open('translations.json') as t_file:
+       translations=json.load(t_file)
+except:
+    translations=json.loads('{"blurb": "blurb"}')
+
+try:
+    with open('blockpids.json') as t_file:
+        blockpids=json.load(t_file)
+except:
+    blockpids={}
+
 req=requests.get(url, auth=HTTPDigestAuth('teletext', 'teletext'))
 req.encoding="UTF-8"
 
 muxes=json.loads(req.text)
 
+all_mux_pids={}
 for mux in muxes:
     mux_pids=[]
-    try:
-       with open('translations.json') as t_file:
-           translations=json.load(t_file)
-    except:
-        translations=json.loads('{"blurb": "blurb"}')
+    mux_uuid=mux["uuid"]
+
     if mux['enabled']!=0:
         for service in mux['services']:
             req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth('teletext', 'teletext'))
@@ -44,7 +54,13 @@ for mux in muxes:
                         translations[srvname]=""
                     mux_pids.append([srvname,stream['pid']]);
                     pids.append(stream['pid'])
+                    if mux_uuid in blockpids:
+                        print(blockpids[mux_uuid])
+                        if stream['pid'] in blockpids[mux["uuid"]]:
+                            pids.remove(stream['pid'])
+                            mux_pids.remove([srvname,stream['pid']]);
         if len(mux_pids)>0:
+            all_mux_pids[mux["uuid"]]=mux_pids
             pids=""
             for stream in mux_pids:
                 if len(pids)>0:
@@ -55,7 +71,7 @@ for mux in muxes:
             out_tmp=outdir+"/"+mux['uuid']
             os.makedirs(out_tmp, exist_ok=True)
             date_prefix=datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
-            os.system("wget -o /dev/null -O - "+url+" | ../../src/ts_teletext --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
+            os.system("timeout 7200 wget -o /dev/null -O - "+url+" | ../../src/ts_teletext --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
             files=os.listdir(out_tmp)
             for service in mux_pids:
                 name=service[0]
@@ -64,11 +80,13 @@ for mux in muxes:
                 pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
                 for f in files:
                     if f.endswith(pid_suffix):
-                        print(name, f)
-            print (os.listdir(outdir))
+                        os.rename(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
+                        files.remove(f)
     with open('translations.json','w') as t_file:
         json.dump(translations,fp=t_file,indent=4, sort_keys=True)
 
+with open('all_mux_pids.json','w') as t_file:
+    json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
 #print(muxes)
 #tree
 
