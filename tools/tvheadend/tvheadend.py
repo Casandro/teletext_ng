@@ -64,6 +64,7 @@ def clean_locks():
 def get_lock(muxname):
     clean_locks()
     lockfile=lockdir+"/"+muxname+".lock"
+    print(lockfile)
     if os.path.exists(lockfile):
         return False
     rnd=str(random.randrange(999999999))
@@ -90,7 +91,7 @@ def get_last_used_age(muxname):
     lockfile=lockdir+"/"+muxname+".last_used"
     if not os.path.exists(lockfile):
         return 1e10
-    f=open(lockfile, "t")
+    f=open(lockfile, "r")
     t=f.read()
     f.close()
     try:
@@ -138,7 +139,7 @@ for mux in muxes:
     if "orbital" in mux:
         position=mux["delsys"]
     if orbital is not None:
-        if position != orbital:
+        if not position in orbital.split(","):
             continue
     filtered_mux_list.append([mux_uuid,age,position])
 
@@ -151,7 +152,7 @@ for fmux in filtered_mux_list:
     print("Multiplex", fmuxname)
     clean_locks()
     #Check for lock
-    if not get_lock(mux_uuid):
+    if not get_lock(fmuxname):
         print("Couldn't get lock")
         continue
     req=requests.get(base_url+"api/raw/export?uuid="+fmuxname, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
