@@ -200,7 +200,6 @@ for fmux in sorted_mux_list:
         continue
     req=requests.get(base_url+"api/raw/export?uuid="+fmuxname, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
     mux=json.loads(req.text)[0]
-    mux_pids=[]
     mux_uuid=mux["uuid"]
     if mux_uuid!=fmuxname:
         print("Didn't return correct mux", mux_uuid, fmuxname)
@@ -210,6 +209,8 @@ for fmux in sorted_mux_list:
 
     load_translations()
 
+    mux_pids=[] #Used to build service list in the end
+    pids=[] #Used to determine PIDs to ask tvheadend for
     for service in mux['services']:
         req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
         channel=json.loads(req.text)
@@ -217,29 +218,22 @@ for fmux in sorted_mux_list:
         if ('svcname' in channel[0]):
             srvname=channel[0]['svcname']
         srvname=srvname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
-
-        pids=[]
         for stream in channel[0]['stream']:
             if stream['type']=="TELETEXT":
                 #Look up service name
                 srvname=translate(srvname)
                 if not stream['pid'] in pids:
-                    mux_pids.append([srvname,stream['pid']]);
                     pids.append(stream['pid'])
-                    if mux_uuid in blockpids:
-                        if stream['pid'] in blockpids[mux["uuid"]]:
-                            pids.remove(stream['pid'])
-                            mux_pids.remove([srvname,stream['pid']]);
+                mux_pids.append([srvname,stream['pid']]);
+                if mux_uuid in blockpids:
+                    if stream['pid'] in blockpids[mux["uuid"]]:
+                        pids.remove(stream['pid'])
+                        mux_pids.remove([srvname,stream['pid']]);
     save_translations()
     
-    if len(mux_pids)>0:
+    if len(pids)>0:
         all_mux_pids[mux["uuid"]]=mux_pids
-        pids=""
-        for stream in mux_pids:
-            if len(pids)>0:
-                pids=pids+","
-            pids=pids+str(stream[1]);
-        url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+pids
+        url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+",".join(map(str,pids))
         print(url)
         if no_stream == 0:
             out_tmp=tmpdir+"/"+mux_uuid
