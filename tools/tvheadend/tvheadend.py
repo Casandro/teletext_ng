@@ -125,19 +125,26 @@ def load_translations():
 def save_translations():
     global translations
     global translations_changes
+    print("save_translations", translations_changes)
     if translations_changes>0:
         with open('translations.json','w') as t_file:
             json.dump(translations,fp=t_file,indent=4, sort_keys=True)
         translations_changes=0
 
-def translate(srvname):
+def translate(srvname,position):
     global translations
     global translations_changes
+    if srvname+"_"+position in translations:
+        x=translations[srvname+"_"+position]
+        if len(x)>1:
+            return x
     if srvname in translations:
         x=translations[srvname]
         if len(x)>1:
             return x
-    translations[srvname]=""
+    translations[srvname+"_"+position]=""
+    translations_changes=translations_changes+1
+
     return "___"+srvname
 
 def pos_to_num(pos):
@@ -221,7 +228,7 @@ for fmux in sorted_mux_list:
         for stream in channel[0]['stream']:
             if stream['type']=="TELETEXT":
                 #Look up service name
-                srvname=translate(srvname)
+                srvname=translate(srvname,fmux[2])
                 if not stream['pid'] in pids:
                     pids.append(stream['pid'])
                 mux_pids.append([srvname,stream['pid']]);
@@ -232,7 +239,7 @@ for fmux in sorted_mux_list:
     save_translations()
     
     if len(pids)>0:
-        all_mux_pids[mux["uuid"]]=mux_pids
+        all_mux_pids[mux["uuid"]+'-'+fmux[2]]=mux_pids
         url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+",".join(map(str,pids))
         print(url)
         if no_stream == 0:
@@ -251,8 +258,7 @@ for fmux in sorted_mux_list:
                         os.rename(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
                         files.remove(f)
     remove_lock(mux_uuid)
-
-with open('all_mux_pids.json','w') as t_file:
-    json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
+    with open('all_mux_pids.json','w') as t_file:
+        json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
 
 
