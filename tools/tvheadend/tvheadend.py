@@ -109,6 +109,8 @@ for mux in muxes:
                         srvname=translations[srvname]
                     except:
                         translations[srvname]=""
+                    if len(srvname)<2:
+                        srvname=service
                     mux_pids.append([srvname,stream['pid']]);
                     pids.append(stream['pid'])
                     if mux_uuid in blockpids:
@@ -139,6 +141,7 @@ for mux in muxes:
                     if f.endswith(pid_suffix):
                         os.rename(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
                         files.remove(f)
+        remove_lock(mux_uuid)
     with open('translations.json','w') as t_file:
         json.dump(translations,fp=t_file,indent=4, sort_keys=True)
 
