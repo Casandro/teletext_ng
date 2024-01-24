@@ -18,13 +18,13 @@ if "TVHEADEND_IP" in os.environ:
     tvheadend_ip=os.environ["TVHEADEND_IP"]
 
 if "TVHEADEND_PORT" in os.environ:
-    tvheadend_ip=os.environ["TVHEADEND_PORT"]
+    tvheadend_port=os.environ["TVHEADEND_PORT"]
 
 if "TVHEADEND_USER" in os.environ:
-    tvheadend_ip=os.environ["TVHEADEND_USER"]
+    tvheadend_user=os.environ["TVHEADEND_USER"]
 
 if "TVHEADEND_PASS" in os.environ:
-    tvheadend_ip=os.environ["TVHEADEND_PASS"]
+    tvheadend_pass=os.environ["TVHEADEND_PASS"]
 
 outdir="outdir"
 if "OUTDIR" in os.environ:
@@ -32,7 +32,7 @@ if "OUTDIR" in os.environ:
 
 tmpdir="/tmp/"
 if "TMPDIR" in os.environ:
-    outdir=os.environ["TMPDIR"]
+    tmpdir=os.environ["TMPDIR"]
 
 lockdir="lock"
 if "LOCKDIR" in os.environ:
