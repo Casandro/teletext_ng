@@ -14,7 +14,7 @@ The program is configured via environment variables:
   * `OUTDIR` the directory for the outgoing files, default `outdir`
   * `TMPDIR` the temporary directory for collecting data, default `/tmp/`
   * `LOCKDIR` the directory to store locks in, default `lock` 
-  * `ORBITAL` use only muxes from this orbital position
+  * `ORBITAL` use only muxes from this list of comma-separated positions, may include DVB-T and DVB-C
   * `NO_STREAM` set to something to not actually process any data, only metadata
 
 

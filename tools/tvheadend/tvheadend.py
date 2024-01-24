@@ -64,7 +64,6 @@ def clean_locks():
 def get_lock(muxname):
     clean_locks()
     lockfile=lockdir+"/"+muxname+".lock"
-    print(lockfile)
     if os.path.exists(lockfile):
         return False
     rnd=str(random.randrange(999999999))
@@ -141,6 +140,17 @@ def translate(srvname):
     translations[srvname]=""
     return "___"+x
 
+def pos_to_num(pos):
+    if pos.startswith("DVB"):
+        return 0
+    if pos.endswith("E"):
+        s=str.rstrip(pos,"E")
+        return float(s)
+    if pos.endswith("W"):
+        s=str.rstrip(pos,"W")
+        return -float(s)
+    return 0
+
 base_url="http://"+tvheadend_ip+":"+tvheadend_port+"/"
 base_url_auth="http://"+tvheadend_user+":"+tvheadend_pass+"@"+tvheadend_ip+":"+tvheadend_port+"/"
 
@@ -169,19 +179,20 @@ for mux in muxes:
     age=get_last_used_age(mux_uuid)
     position=mux["delsys"]
     if "orbital" in mux:
-        position=mux["delsys"]
+        position=mux["orbital"]
     if orbital is not None:
         if not position in orbital.split(","):
             continue
     filtered_mux_list.append([mux_uuid,age,position])
 
-filered_mux_list=sorted(filtered_mux_list, key=lambda d:d[1])
+temp_mux_list=sorted(filtered_mux_list, key=lambda d:d[1],reverse=True)
+sorted_mux_list=sorted(temp_mux_list, key=lambda d:pos_to_num(d[2]))
 
 
 all_mux_pids={}
-for fmux in filtered_mux_list:
+for fmux in sorted_mux_list:
     fmuxname=fmux[0]
-    print("Multiplex", fmuxname)
+    print("Multiplex:", fmuxname, "age:", fmux[1], "position:", fmux[2])
     clean_locks()
     #Check for lock
     if not get_lock(fmuxname):
@@ -216,7 +227,6 @@ for fmux in filtered_mux_list:
                     mux_pids.append([srvname,stream['pid']]);
                     pids.append(stream['pid'])
                     if mux_uuid in blockpids:
-                        print(blockpids[mux_uuid])
                         if stream['pid'] in blockpids[mux["uuid"]]:
                             pids.remove(stream['pid'])
                             mux_pids.remove([srvname,stream['pid']]);
