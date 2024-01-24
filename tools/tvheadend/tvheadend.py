@@ -109,6 +109,38 @@ def use_mux(mux):
                 return False
     return True
 
+translations_changes=0
+translations=None
+
+def load_translations():
+    global translations
+    global translations_changes
+    try:
+       with open('translations.json') as t_file:
+           translations=json.load(t_file)
+    except:
+        translations=json.loads('{"blurb": "blurb"}')
+    translations_changes=0
+    return translations
+
+def save_translations():
+    global translations
+    global translations_changes
+    if translations_changes>0:
+        with open('translations.json','w') as t_file:
+            json.dump(translations,fp=t_file,indent=4, sort_keys=True)
+        translations_changes=0
+
+def translate(srvname):
+    global translations
+    global translations_changes
+    if srvname in translations:
+        x=translations[srvname]
+        if len(x)>1:
+            return x
+    translations[srvname]=""
+    return "___"+x
+
 base_url="http://"+tvheadend_ip+":"+tvheadend_port+"/"
 base_url_auth="http://"+tvheadend_user+":"+tvheadend_pass+"@"+tvheadend_ip+":"+tvheadend_port+"/"
 
@@ -165,13 +197,8 @@ for fmux in filtered_mux_list:
     
     set_last_used(mux_uuid)
 
-    try:
-       with open('translations.json') as t_file:
-           translations=json.load(t_file)
-    except:
-        translations=json.loads('{"blurb": "blurb"}')
+    load_translations()
 
-    changes=0
     for service in mux['services']:
         req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
         channel=json.loads(req.text)
@@ -179,30 +206,22 @@ for fmux in filtered_mux_list:
         if ('svcname' in channel[0]):
             srvname=channel[0]['svcname']
         srvname=srvname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
+
         pids=[]
         for stream in channel[0]['stream']:
             if stream['type']=="TELETEXT":
                 #Look up service name
-                try:
-                    srvname_=translations[srvname]
-                    if len(srvname_)>3:
-                        srvname=srvname_
-                except:
-                    translations[srvname]=""
-                    changes=changes+1
-                    srvname="___"+srvname
-                if len(srvname)<2:
-                    srvname="___"+service
-                mux_pids.append([srvname,stream['pid']]);
-                pids.append(stream['pid'])
-                if mux_uuid in blockpids:
-                    print(blockpids[mux_uuid])
-                    if stream['pid'] in blockpids[mux["uuid"]]:
-                        pids.remove(stream['pid'])
-                        mux_pids.remove([srvname,stream['pid']]);
-    if changes>0:
-        with open('translations.json','w') as t_file:
-            json.dump(translations,fp=t_file,indent=4, sort_keys=True)
+                srvname=translate(srvname)
+                if not stream['pid'] in pids:
+                    mux_pids.append([srvname,stream['pid']]);
+                    pids.append(stream['pid'])
+                    if mux_uuid in blockpids:
+                        print(blockpids[mux_uuid])
+                        if stream['pid'] in blockpids[mux["uuid"]]:
+                            pids.remove(stream['pid'])
+                            mux_pids.remove([srvname,stream['pid']]);
+    save_translations()
+    
     if len(mux_pids)>0:
         all_mux_pids[mux["uuid"]]=mux_pids
         pids=""
