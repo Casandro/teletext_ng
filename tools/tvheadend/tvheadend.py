@@ -84,7 +84,7 @@ try:
 except:
     blockpids={}
 
-req=requests.get(url, auth=HTTPDigestAuth('teletext', 'teletext'))
+req=requests.get(url, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
 req.encoding="UTF-8"
 
 if req.status_code != 200:
@@ -112,7 +112,7 @@ for mux in muxes:
         if mux["orbital"]!=orbital:
             continue
     for service in mux['services']:
-        req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth('teletext', 'teletext'))
+        req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
         channel=json.loads(req.text)
         srvname=service
         if ('svcname' in channel[0]):
@@ -164,18 +164,5 @@ with open('translations.json','w') as t_file:
 
 with open('all_mux_pids.json','w') as t_file:
     json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
-#print(muxes)
-#tree
 
-#.getroot()
 
-#for child in root:
- #   chname=child[1].text.strip().replace(" ","_").replace("/","_").replace("$","")
-  #  print(chname)
-#    os.system("wget -o /dev/null -O - http://192.168.5.12:8001/"+child[0].text+" | ../src/ts_teletext --ts --stop")
- #   with os.scandir(".") as it:
-#        for entry in it:
-#            if entry.name.startswith("0x") and entry.is_file:
-#                os.rename(entry.name,outdir+"/"+chname+" "+time.strftime("%Y-%m-%dT%H:%M:%S+0000", time.gmtime())+"-"+entry.name);
-#    os.system("cp "+outdir+"/* /daten/archiv/teletext/enigma/");
-#    os.system("rsync --remove-source-files -av "+outdir+"/* teletext@teletext-submit.clarke-3.de:/daten_server/teletext/in/enigma/");
