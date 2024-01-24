@@ -48,6 +48,12 @@ if "LOCKDIR" in os.environ:
     lockdir=os.environ["LOCKDIR"]
 os.makedirs(lockdir, exist_ok=True)
 
+ts_teletext="../../src/ts_teletext"
+if not os.path.exists(ts_teletext):
+    ts_teletext="ts_teletext"
+if "TS_TELETEXT" in os.environ:
+    ts_teletext=os.environ["TS_TELETEXT"]
+
 
 def clean_locks():
     with os.scandir(lockdir) as it:
@@ -246,7 +252,7 @@ for fmux in sorted_mux_list:
             out_tmp=tmpdir+"/"+mux_uuid
             os.makedirs(out_tmp, exist_ok=True)
             date_prefix=datetime.datetime.now().utcnow().isoformat(timespec="seconds")+"+00:00"
-            os.system("timeout 7200 wget -o /dev/null -O - "+url+" | ../../src/ts_teletext --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
+            os.system("timeout 7200 wget -o /dev/null -O - "+url+" | "+ts_teletext+" --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
             files=os.listdir(out_tmp)
             for service in mux_pids:
                 name=service[0]
