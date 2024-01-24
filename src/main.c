@@ -44,12 +44,14 @@ int main(int argc, char *argv[])
 	char *lockfile=NULL;
 	char *prefix=NULL;
 	char *blockpids=NULL;
+	char *statusfile=NULL;
 	for (n=1; n<argc; n++){
 		if (strcasecmp(argv[n], "--TS")==0) mode=1; else
 		if (strcasecmp(argv[n], "--T42")==0) mode=2; else
 		if (strcasecmp(argv[n], "--STOP")==0) stop=1; else
 		if (strncmp(argv[n], "-p", 2)==0) prefix=argv[n]+2; else
 		if (strncmp(argv[n], "-b", 2)==0) blockpids=argv[n]+2; else
+		if (strncmp(argv[n], "-s", 2)==0) statusfile=argv[n]+2; else
 		if (strncmp(argv[n], "-l", 2)==0) lockfile=argv[n]+2; else
 		{
 			printf("Trying file %s\n", argv[n]);
@@ -61,7 +63,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	if (mode==0) {
-		printf("Usage: %s \n\t--t42 stdin is a T42 stream\n\t--ts stdin is a DVB transport stream\n\t--stop stop executing after full service has been decoded\n\t-p<prefix> directory to send output to\n\t-b<list> list of PIDs to ignore\n\t-l<lockfile> lockfile", argv[0]);
+		printf("Usage: %s \n\t--t42 stdin is a T42 stream\n\t--ts stdin is a DVB transport stream\n\t--stop stop executing after full service has been decoded\n\t-p<prefix> directory to send output to\n\t-b<list> list of PIDs to ignore\n\t-l<lockfile> lockfile\n\t-s<statusfile> writes the current status into this file on SIGUSR1", argv[0]);
 	}
 	if (mode==2) { //Handle a T42 file
 		uint8_t line[42];
@@ -106,7 +108,7 @@ int main(int argc, char *argv[])
 			if (pid<0) continue;
 			if (pids_enabled[pid]==0) continue;
 			pktcnt=pktcnt+1;
-			process_ts_packet(packet, prefix);
+			process_ts_packet(packet, prefix, statusfile);
 			if (cnt>100000) {
 				cnt=0;
 				if ((stop==1) && (are_pes_handlers_done()==1) ) {

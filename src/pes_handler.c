@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#include <signal.h>
 
 #include "page.h"
 #include "hamming.h"
@@ -10,7 +12,7 @@
 
 
 pes_handler_t *pes_handler[PIDNUM]={NULL};
-void print_full_status();
+void print_full_status(const char *);
 
 
 pes_handler_t *new_pes_handler(const int pid)
@@ -23,7 +25,7 @@ pes_handler_t *new_pes_handler(const int pid)
 	return ph;
 }
 
-void handle_pes(pes_handler_t *p, const char *prefix)
+void handle_pes(pes_handler_t *p, const char *prefix, const char *statusfile)
 {
 	if (p->write_pointer<0) return;
 	p->write_pointer=-1;
@@ -78,7 +80,7 @@ void handle_pes(pes_handler_t *p, const char *prefix)
 		int res=handle_t42_data(p->ap, line);
 		if (res==0) cnt=cnt+1;
 	}
-	print_full_status();
+	print_full_status(statusfile);
 }
 
 int ts_get_pid(const uint8_t *buf)
@@ -93,7 +95,7 @@ int ts_get_pid(const uint8_t *buf)
 	return pid;
 }
 
-int process_ts_packet(const uint8_t *buf, const char *prefix)
+int process_ts_packet(const uint8_t *buf, const char *prefix, const char *statusfile)
 {
 	int n;
 	uint32_t header=buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
@@ -123,7 +125,7 @@ int process_ts_packet(const uint8_t *buf, const char *prefix)
 
 	if (payload_unit_start_indicator==1) {
 		//handle possible previous packet
-		handle_pes(pes_handler[pid], prefix);
+		handle_pes(pes_handler[pid], prefix, statusfile);
 		//Check if packet is plausible
 		uint32_t start_code=(buf[4]<<24) | (buf[5]<<16) | (buf[6]<<8) | buf[7];
 		if (start_code!=0x000001bd) {
@@ -172,8 +174,34 @@ int are_pes_handlers_done()
 
 struct timeval *last_update=NULL;
 
-void print_full_status()
+volatile sig_atomic_t status_signal_received=-1;
+
+
+void status_signal_catcher(int signo)
 {
+	if (signo==SIGUSR1) status_signal_received=status_signal_received+1;
+
+}
+
+void print_full_status(const char *statusfile)
+{
+	if (statusfile!=NULL) {
+		if (status_signal_received==-1) {
+			signal(SIGUSR1, status_signal_catcher);
+			status_signal_received=0;
+		}
+		if (status_signal_received!=0) {
+			status_signal_received=0;
+			FILE *f=fopen(statusfile, "w");
+			for (int pid=0; pid<PIDNUM; pid++) {
+				if (pes_handler[pid]==NULL) continue;
+				if (pes_handler[pid]->ap==NULL) continue;
+				print_service_status(pes_handler[pid]->ap, pid, f, "\n");
+			}
+			fclose(f);
+		}
+	}
+
 	if (last_update==NULL) {
 		last_update=calloc(sizeof(struct timeval),1);
 	}

@@ -13,7 +13,7 @@ typedef struct {
 	int continuity_counter;
 } pes_handler_t;
 
-int process_ts_packet(const uint8_t *buf, const char*);
+int process_ts_packet(const uint8_t *buf, const char*, const char*);
 void finish_ts_packets();
 int are_pes_handlers_done();
 int ts_get_pid(const uint8_t *buf);
