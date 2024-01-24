@@ -138,7 +138,7 @@ def translate(srvname):
         if len(x)>1:
             return x
     translations[srvname]=""
-    return "___"+x
+    return "___"+srvname
 
 def pos_to_num(pos):
     if pos.startswith("DVB"):
