@@ -80,12 +80,36 @@ def get_lock(muxname):
 def remove_lock(muxname):
     os.remove(lockdir+"/"+muxname+".lock")
 
+def set_last_used(muxname):
+    lockfile=lockdir+"/"+muxname+".last_used"
+    f=open(lockfile, "w")
+    f.write(str(time.time()))
+    f.close()
+
+def get_last_used_age(muxname):
+    lockfile=lockdir+"/"+muxname+".last_used"
+    if not os.path.exists(lockfile):
+        return 1e10
+    f=open(lockfile, "t")
+    t=f.read()
+    f.close()
+    try:
+        return time.time()-float(t)
+    except:
+        os.remove(lockfile)
+        return 1e10
+
+def use_mux(mux):
+    if mux['enabled']==0:
+        return False
+    if orbital is not None:
+        if 'orbital' not in mux:
+            if mux["orbital"]!=orbital:
+                return False
+    return True
 
 base_url="http://"+tvheadend_ip+":"+tvheadend_port+"/"
 base_url_auth="http://"+tvheadend_user+":"+tvheadend_pass+"@"+tvheadend_ip+":"+tvheadend_port+"/"
-
-url=base_url+"api/raw/export?class=dvb_mux"
-
 
 try:
     with open('blockpids.json') as t_file:
@@ -93,6 +117,7 @@ try:
 except:
     blockpids={}
 
+url=base_url+"api/raw/export?class=dvb_mux"
 req=requests.get(url, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
 req.encoding="UTF-8"
 
@@ -102,24 +127,43 @@ if req.status_code != 200:
 
 muxes=json.loads(req.text)
 
-all_mux_pids={}
-for mux in muxes:
-    mux_pids=[]
-    mux_uuid=mux["uuid"]
-    clean_locks()
+filtered_mux_list=[]
 
-    #Check if mux is enabled
-    if mux['enabled']==0:
+for mux in muxes:
+    mux_uuid=mux["uuid"]
+    if not use_mux(mux):
         continue
+    age=get_last_used_age(mux_uuid)
+    position=mux["delsys"]
+    if "orbital" in mux:
+        position=mux["delsys"]
+    if orbital is not None:
+        if position != orbital:
+            continue
+    filtered_mux_list.append([mux_uuid,age,position])
+
+filered_mux_list=sorted(filtered_mux_list, key=lambda d:d[1])
+
+
+all_mux_pids={}
+for fmux in filtered_mux_list:
+    fmuxname=fmux[0]
+    print("Multiplex", fmuxname)
+    clean_locks()
     #Check for lock
     if not get_lock(mux_uuid):
+        print("Couldn't get lock")
         continue
-    #Check for correct orbital
-    if orbital is not None:
-        if 'orbital' not in mux:
-            continue
-        if mux["orbital"]!=orbital:
-            continue
+    req=requests.get(base_url+"api/raw/export?uuid="+fmuxname, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
+    mux=json.loads(req.text)[0]
+    mux_pids=[]
+    mux_uuid=mux["uuid"]
+    if mux_uuid!=fmuxname:
+        print("Didn't return correct mux", mux_uuid, fmuxname)
+        exit()
+    
+    set_last_used(mux_uuid)
+
     try:
        with open('translations.json') as t_file:
            translations=json.load(t_file)
