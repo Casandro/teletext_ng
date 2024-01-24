@@ -103,10 +103,16 @@ int mainpage_done(const mainpage_t *page)
 	if (page->subpages[0]!=NULL) return page->subpages[0]->cnt;
 	//Count the highest yet received subpage
 	int msp=-1;
-	int n;
-	for (n=1; n<SUBPAGENUM; n++) if (page->subpages[n]!=NULL) msp=n;
+	for (int n=1; n<SUBPAGENUM; n++) if (page->subpages[n]!=NULL) msp=n;
+	int fsn=0;
+	for (int n=1; n<=msp; n++) { //Cound subpages with more than 10 captures
+		if (page->subpages[n]!=NULL) {
+			if (page->subpages[n]->cnt>10) fsn=fsn+1;
+		}
+	}
+	if (fsn>msp/2) return 2; //If there are more than half the subpages with more than 10 caputres, we are fine
 	int maxcnt=1;
-	for (n=1; n<=msp; n++) {
+	for (int n=1; n<=msp; n++) {
 		if (page->subpages[n]==NULL) {
 			return -1; //Obviously not all pages have been found
 		}
