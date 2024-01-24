@@ -26,6 +26,10 @@ if "TVHEADEND_USER" in os.environ:
 if "TVHEADEND_PASS" in os.environ:
     tvheadend_pass=os.environ["TVHEADEND_PASS"]
 
+orbital=None
+if "ORBITAL" in os.environ:
+    orbital=os.environ["ORBITAL"]
+
 outdir="outdir"
 if "OUTDIR" in os.environ:
     outdir=os.environ["OUTDIR"]
@@ -83,6 +87,10 @@ except:
 req=requests.get(url, auth=HTTPDigestAuth('teletext', 'teletext'))
 req.encoding="UTF-8"
 
+if req.status_code != 200:
+    print("Couldn't get multiplex list. Maybe user has insufficient rights. Code: ", req.status_code)
+    exit()
+
 muxes=json.loads(req.text)
 
 all_mux_pids={}
@@ -91,59 +99,68 @@ for mux in muxes:
     mux_uuid=mux["uuid"]
     clean_locks()
 
-    if mux['enabled']!=0:
-        if not get_lock(mux_uuid):
+    #Check if mux is enabled
+    if mux['enabled']==0:
+        continue
+    #Check for lock
+    if not get_lock(mux_uuid):
+        continue
+    #Check for correct orbital
+    if orbital is not None:
+        if 'orbital' not in mux:
             continue
-        for service in mux['services']:
-            req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth('teletext', 'teletext'))
-            channel=json.loads(req.text)
-            srvname=service
-            if ('svcname' in channel[0]):
-                srvname=channel[0]['svcname']
-            srvname=srvname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
-            pids=[]
-            for stream in channel[0]['stream']:
-                if stream['type']=="TELETEXT":
-                    #Look up service name
-                    try:
-                        srvname=translations[srvname]
-                    except:
-                        translations[srvname]=""
-                    if len(srvname)<2:
-                        srvname=service
-                    mux_pids.append([srvname,stream['pid']]);
-                    pids.append(stream['pid'])
-                    if mux_uuid in blockpids:
-                        print(blockpids[mux_uuid])
-                        if stream['pid'] in blockpids[mux["uuid"]]:
-                            pids.remove(stream['pid'])
-                            mux_pids.remove([srvname,stream['pid']]);
-        if len(mux_pids)>0:
-            all_mux_pids[mux["uuid"]]=mux_pids
-            pids=""
-            for stream in mux_pids:
-                if len(pids)>0:
-                    pids=pids+","
-                pids=pids+str(stream[1]);
-            url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+pids
-            print(url)
-            out_tmp=tmpdir+"/"+mux_uuid
-            os.makedirs(out_tmp, exist_ok=True)
-            date_prefix=datetime.datetime.now().utcnow().isoformat(timespec="seconds")+"+00:00"
-            os.system("timeout 7200 wget -o /dev/null -O - "+url+" | ../../src/ts_teletext --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
-            files=os.listdir(out_tmp)
-            for service in mux_pids:
-                name=service[0]
-                os.makedirs(outdir+"/"+name, exist_ok=True)
-                pid=service[1]
-                pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
-                for f in files:
-                    if f.endswith(pid_suffix):
-                        os.rename(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
-                        files.remove(f)
-        remove_lock(mux_uuid)
-    with open('translations.json','w') as t_file:
-        json.dump(translations,fp=t_file,indent=4, sort_keys=True)
+        if mux["orbital"]!=orbital:
+            continue
+    for service in mux['services']:
+        req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth('teletext', 'teletext'))
+        channel=json.loads(req.text)
+        srvname=service
+        if ('svcname' in channel[0]):
+            srvname=channel[0]['svcname']
+        srvname=srvname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
+        pids=[]
+        for stream in channel[0]['stream']:
+            if stream['type']=="TELETEXT":
+                #Look up service name
+                try:
+                    srvname=translations[srvname]
+                except:
+                    translations[srvname]=""
+                if len(srvname)<2:
+                    srvname=service
+                mux_pids.append([srvname,stream['pid']]);
+                pids.append(stream['pid'])
+                if mux_uuid in blockpids:
+                    print(blockpids[mux_uuid])
+                    if stream['pid'] in blockpids[mux["uuid"]]:
+                        pids.remove(stream['pid'])
+                        mux_pids.remove([srvname,stream['pid']]);
+    if len(mux_pids)>0:
+        all_mux_pids[mux["uuid"]]=mux_pids
+        pids=""
+        for stream in mux_pids:
+            if len(pids)>0:
+                pids=pids+","
+            pids=pids+str(stream[1]);
+        url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+pids
+        print(url)
+        out_tmp=tmpdir+"/"+mux_uuid
+        os.makedirs(out_tmp, exist_ok=True)
+        date_prefix=datetime.datetime.now().utcnow().isoformat(timespec="seconds")+"+00:00"
+        os.system("timeout 7200 wget -o /dev/null -O - "+url+" | ../../src/ts_teletext --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
+        files=os.listdir(out_tmp)
+        for service in mux_pids:
+            name=service[0]
+            os.makedirs(outdir+"/"+name, exist_ok=True)
+            pid=service[1]
+            pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
+            for f in files:
+                if f.endswith(pid_suffix):
+                    os.rename(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
+                    files.remove(f)
+    remove_lock(mux_uuid)
+with open('translations.json','w') as t_file:
+    json.dump(translations,fp=t_file,indent=4, sort_keys=True)
 
 with open('all_mux_pids.json','w') as t_file:
     json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
