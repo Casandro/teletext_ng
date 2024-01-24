@@ -209,7 +209,7 @@ for fmux in sorted_mux_list:
 
     load_translations()
 
-    mux_pids=[] #Used to build service list in the end
+    mux_pids=[] #Used to build service list in the end and to find the names for the outgoing directories
     pids=[] #Used to determine PIDs to ask tvheadend for
     for service in mux['services']:
         req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
