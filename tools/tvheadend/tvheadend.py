@@ -30,6 +30,10 @@ orbital=None
 if "ORBITAL" in os.environ:
     orbital=os.environ["ORBITAL"]
 
+no_stream=0
+if "NO_STREAM" in os.environ:
+    no_stream=1
+
 outdir="outdir"
 if "OUTDIR" in os.environ:
     outdir=os.environ["OUTDIR"]
@@ -52,7 +56,7 @@ def clean_locks():
                 age=time.time()-mtime
                 if age>7200:
                     os.remove(f.path)
-                print(f.name, age)
+                    print("Removed statle lock for", f.name, age)
 
 def get_lock(muxname):
     clean_locks()
@@ -147,7 +151,8 @@ for mux in muxes:
         out_tmp=tmpdir+"/"+mux_uuid
         os.makedirs(out_tmp, exist_ok=True)
         date_prefix=datetime.datetime.now().utcnow().isoformat(timespec="seconds")+"+00:00"
-        os.system("timeout 7200 wget -o /dev/null -O - "+url+" | ../../src/ts_teletext --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
+        if no_stream == 0:
+            os.system("timeout 7200 wget -o /dev/null -O - "+url+" | ../../src/ts_teletext --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
         files=os.listdir(out_tmp)
         for service in mux_pids:
             name=service[0]

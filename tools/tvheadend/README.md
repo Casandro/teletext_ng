@@ -15,6 +15,7 @@ The program is configured via environment variables:
   * `TMPDIR` the temporary directory for collecting data, default `/tmp/`
   * `LOCKDIR` the directory to store locks in, default `lock` 
   * `ORBITAL` use only muxes from this orbital position
+  * `NO_STREAM` set to something to not actually process any data, only metadata
 
 
 ## translations.json
