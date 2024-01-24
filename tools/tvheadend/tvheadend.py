@@ -7,6 +7,7 @@ from requests.auth import HTTPDigestAuth
 import json
 import datetime
 import time
+import random
 
 
 tvheadend_ip="127.0.0.1"
@@ -52,6 +53,8 @@ def clean_locks():
     with os.scandir(lockdir) as it:
         for f in it:
             if f.is_file():
+                if not f.path.endswith(".lock"):
+                    continue
                 mtime=f.stat().st_mtime
                 age=time.time()-mtime
                 if age>7200:
@@ -60,15 +63,22 @@ def clean_locks():
 
 def get_lock(muxname):
     clean_locks()
-    if os.path.exists(lockdir+"/"+muxname):
+    lockfile=lockdir+"/"+muxname+".lock"
+    if os.path.exists(lockfile):
         return False
-    f=open(lockdir+"/"+muxname, "w")
-    f.write("XXXXX")
+    rnd=str(random.randrange(999999999))
+    f=open(lockfile, "w")
+    f.write(rnd)
     f.close()
-    return True
+    f=open(lockfile, "r")
+    rd=f.read()
+    f.close()
+    if rnd==rd:
+        return True
+    return False
 
 def remove_lock(muxname):
-    os.remove(lockdir+"/"+muxname)
+    os.remove(lockdir+"/"+muxname+".lock")
 
 
 base_url="http://"+tvheadend_ip+":"+tvheadend_port+"/"
