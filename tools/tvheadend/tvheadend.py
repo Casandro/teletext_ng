@@ -76,11 +76,6 @@ base_url_auth="http://"+tvheadend_user+":"+tvheadend_pass+"@"+tvheadend_ip+":"+t
 
 url=base_url+"api/raw/export?class=dvb_mux"
 
-try:
-   with open('translations.json') as t_file:
-       translations=json.load(t_file)
-except:
-    translations=json.loads('{"blurb": "blurb"}')
 
 try:
     with open('blockpids.json') as t_file:
@@ -115,6 +110,13 @@ for mux in muxes:
             continue
         if mux["orbital"]!=orbital:
             continue
+    try:
+       with open('translations.json') as t_file:
+           translations=json.load(t_file)
+    except:
+        translations=json.loads('{"blurb": "blurb"}')
+
+    changes=0
     for service in mux['services']:
         req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
         channel=json.loads(req.text)
@@ -127,11 +129,15 @@ for mux in muxes:
             if stream['type']=="TELETEXT":
                 #Look up service name
                 try:
-                    srvname=translations[srvname]
+                    srvname_=translations[srvname]
+                    if len(srvname_)>3:
+                        srvname=srvname_
                 except:
                     translations[srvname]=""
+                    changes=changes+1
+                    srvname="___"+srvname
                 if len(srvname)<2:
-                    srvname=service
+                    srvname="___"+service
                 mux_pids.append([srvname,stream['pid']]);
                 pids.append(stream['pid'])
                 if mux_uuid in blockpids:
@@ -139,6 +145,9 @@ for mux in muxes:
                     if stream['pid'] in blockpids[mux["uuid"]]:
                         pids.remove(stream['pid'])
                         mux_pids.remove([srvname,stream['pid']]);
+    if changes>0:
+        with open('translations.json','w') as t_file:
+            json.dump(translations,fp=t_file,indent=4, sort_keys=True)
     if len(mux_pids)>0:
         all_mux_pids[mux["uuid"]]=mux_pids
         pids=""
@@ -148,24 +157,22 @@ for mux in muxes:
             pids=pids+str(stream[1]);
         url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+pids
         print(url)
-        out_tmp=tmpdir+"/"+mux_uuid
-        os.makedirs(out_tmp, exist_ok=True)
-        date_prefix=datetime.datetime.now().utcnow().isoformat(timespec="seconds")+"+00:00"
         if no_stream == 0:
+            out_tmp=tmpdir+"/"+mux_uuid
+            os.makedirs(out_tmp, exist_ok=True)
+            date_prefix=datetime.datetime.now().utcnow().isoformat(timespec="seconds")+"+00:00"
             os.system("timeout 7200 wget -o /dev/null -O - "+url+" | ../../src/ts_teletext --ts --stop -p"+out_tmp+"/"+date_prefix+"-")
-        files=os.listdir(out_tmp)
-        for service in mux_pids:
-            name=service[0]
-            os.makedirs(outdir+"/"+name, exist_ok=True)
-            pid=service[1]
-            pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
-            for f in files:
-                if f.endswith(pid_suffix):
-                    os.rename(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
-                    files.remove(f)
+            files=os.listdir(out_tmp)
+            for service in mux_pids:
+                name=service[0]
+                os.makedirs(outdir+"/"+name, exist_ok=True)
+                pid=service[1]
+                pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
+                for f in files:
+                    if f.endswith(pid_suffix):
+                        os.rename(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
+                        files.remove(f)
     remove_lock(mux_uuid)
-with open('translations.json','w') as t_file:
-    json.dump(translations,fp=t_file,indent=4, sort_keys=True)
 
 with open('all_mux_pids.json','w') as t_file:
     json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
