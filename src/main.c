@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	if (mode==0) {
-		printf("Usage: %s \n\t--t42 stdin is a T42 stream\n\t--ts stdin is a DVB transport stream\n\t--stop stop executing after full service has been decoded\n\t-p<prefix> directory to send output to\n\t-b<list> list of PIDs to ignore\n\t-l<lockfile> lockfile\n\t-s<statusfile> writes the current status into this file on SIGUSR1", argv[0]);
+		printf("Usage: %s \n\t--t42 stdin is a T42 stream\n\t--ts stdin is a DVB transport stream\n\t--stop stop executing after full service has been decoded\n\t-p<prefix> directory to send output to\n\t-b<list> list of PIDs to ignore\n\t-l<lockfile> lockfile\n\t-s<statusfile> writes the current status into this file on SIGUSR1\n", argv[0]);
 	}
 	if (mode==2) { //Handle a T42 file
 		uint8_t line[42];

@@ -21,6 +21,9 @@ $(PROG): $(OBJS)
 
 .PHONY: clean cleaner
 
+install:
+	cp $(PROG) /usr/local/bin/
+
 clean:
 	rm -f $(OBJS) $(DEPS) 
 
