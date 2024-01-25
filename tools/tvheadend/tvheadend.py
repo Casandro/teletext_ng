@@ -259,6 +259,8 @@ for fmux in sorted_mux_list:
             sfile=""
             if not statusfile is None:
                 sfile="-s"+statusfile
+            for ch in mux_pids:
+                print(ch[0]+": 0x"+"{:04x}".format(ch[1]))
             os.system("timeout 7200 wget -o /dev/null -O - "+url+" | "+ts_teletext+" --ts --stop "+sfile+"  -p"+out_tmp+"/"+date_prefix+"-")
             files=os.listdir(out_tmp)
             for service in mux_pids:
