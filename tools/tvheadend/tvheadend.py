@@ -8,6 +8,7 @@ import json
 import datetime
 import time
 import random
+import shutil
 
 
 tvheadend_ip="127.0.0.1"
@@ -274,7 +275,7 @@ for fmux in sorted_mux_list:
                 pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
                 for f in files:
                     if f.endswith(pid_suffix):
-                        os.rename(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
+                        shutil.move(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
                         files.remove(f)
     remove_lock(mux_uuid)
     with open('all_mux_pids.json','w') as t_file:
