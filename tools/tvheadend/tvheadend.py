@@ -151,6 +151,12 @@ def save_translations():
 def translate(srvname,position):
     global translations
     global translations_changes
+    if srvname=="BLOCK":
+        return "BLOCK"
+    if srvname=="___BLOCK":
+        return "BLOCK"
+    if srvname=="______BLOCK":
+        return "BLOCK"
     if srvname+"_"+position in translations:
         x=translations[srvname+"_"+position]
         if len(x)>1:
