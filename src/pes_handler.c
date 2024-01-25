@@ -231,7 +231,7 @@ void print_single_line_status(const int te)
 	}
 	last_expected=sum_expected;
 
-	printf("\r");
+	printf("        \r");
 }
 
 void print_full_status(const char *statusfile)
