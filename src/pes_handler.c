@@ -259,7 +259,7 @@ void print_full_status(const char *statusfile)
 		}
 		last_expected=sum_expected;
 
-		printf("\n");
+		printf("\r");
 	}
 	fflush(stdout);
 }
