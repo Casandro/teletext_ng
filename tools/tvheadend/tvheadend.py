@@ -154,7 +154,6 @@ def translate(srvname,position):
             return x
     translations[srvname+"_"+position]=""
     translations_changes=translations_changes+1
-
     return "___"+srvname
 
 def pos_to_num(pos):
@@ -238,15 +237,19 @@ for fmux in sorted_mux_list:
         for stream in channel[0]['stream']:
             if stream['type']=="TELETEXT":
                 #Look up service name
+                osrvname=srvname
+                if srvname=="BLOCK":
+                    continue
                 srvname=translate(srvname,fmux[2])
-                if srvname!="BLOCK":
-                    if not stream['pid'] in pids:
-                        pids.append(stream['pid'])
-                    mux_pids.append([srvname,stream['pid']]);
-                    if mux_uuid in blockpids:
-                        if stream['pid'] in blockpids[mux["uuid"]]:
-                            pids.remove(stream['pid'])
-                            mux_pids.remove([srvname,stream['pid']]);
+                if srvname=="BLOCK":
+                    continue
+                if not stream['pid'] in pids:
+                    pids.append(stream['pid'])
+                mux_pids.append([srvname,stream['pid'],osrvname]);
+                if mux_uuid in blockpids:
+                    if stream['pid'] in blockpids[mux["uuid"]]:
+                        pids.remove(stream['pid'])
+                        mux_pids.remove([srvname,stream['pid']]);
     save_translations()
     
     if len(pids)>0:
@@ -261,7 +264,7 @@ for fmux in sorted_mux_list:
             if not statusfile is None:
                 sfile="-s"+statusfile
             for ch in mux_pids:
-                print(ch[0]+": 0x"+"{:04x}".format(ch[1]))
+                print(ch[0]+": 0x"+"{:04x}".format(ch[1])+" "+ch[2])
             os.system("timeout 7200 wget -o /dev/null -O - "+url+" | "+ts_teletext+" --ts --stop "+sfile+"  -p"+out_tmp+"/"+date_prefix+"-")
             files=os.listdir(out_tmp)
             for service in mux_pids:
