@@ -17,6 +17,7 @@
     "HR-FERNSEHEN": "de.HR",
     "HSE": "de.HSE",
     "HSEEXTRA": "de.HSE",
+    "HSETREND_DVB-C": "de.HSE",
     "KABELEINS": "de.KabelEins",
     "KABELEINSDOKU": "de.Kabel1_Doku",
     "KIKA": "de.KI.KA",
@@ -56,10 +57,11 @@
     "TAGESSCHAU24": "de.tagesschau24",
     "TELE5": "de.Tele5",
     "TLC": "de.TLC",
-    "VOX_DVB-C": "de.VOX",
+    "TV5MONDE(FRE)_DVB-C": "fr.TV5",
     "VOXUP": "de.VOX-up",
+    "VOX_DVB-C": "de.VOX",
     "WDRK\u00d6LN": "de.WDR",
-    "ZDFINFO": "de.ZDF-info",
     "ZDF": "de.ZDF",
+    "ZDFINFO": "de.ZDF-info",
     "ZDF_NEO": "de.ZDF-neo"
 }
