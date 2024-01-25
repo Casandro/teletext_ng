@@ -2,7 +2,7 @@ PROG := ts_teletext
 SRCS := $(wildcard *.c)
 
 CC      := cc
-CFLAGS  := -Wall -Wextra -Werror -O3 
+CFLAGS  := -Wall -Wextra -Werror 
 LDFLAGS := 
 
 OBJS   = $(SRCS:.c=.o)

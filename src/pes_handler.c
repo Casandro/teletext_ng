@@ -186,6 +186,54 @@ void status_signal_catcher(int signo)
 
 }
 
+void print_file_status(const char *statusfile)
+{
+	status_signal_received=0;
+	FILE *f=fopen(statusfile, "w");
+	if (f==NULL) {
+		printf("print_short_status, couldn't open file %s\n", statusfile);
+		return;
+	}
+	for (int pid=0; pid<PIDNUM; pid++) {
+		if (pes_handler[pid]==NULL) continue;
+		if (pes_handler[pid]->ap==NULL) continue;
+		print_service_status(pes_handler[pid]->ap, pid, f, "\n");
+	}
+	fclose(f);
+}
+
+void print_single_line_status(const int te)
+{
+	int sum_expected=0;
+	int sum_count=0;
+	for (int pid=0; pid<PIDNUM; pid++) {
+		if (pes_handler[pid]==NULL) continue;
+		if (pes_handler[pid]->ap==NULL) continue;
+		int expected=0;
+		int count=0;
+		allpages_done_fraction(pes_handler[pid]->ap, &expected, &count);
+		printf("0x%04x: %d/%d  ",pid,count,expected);
+		sum_expected=sum_expected+expected;
+		sum_count=sum_count+count;
+	}
+	printf(" Total: %d/%d", sum_count, sum_expected);
+	if ( (last_expected==sum_expected) && (te>0) ) {
+		double t=((double)te)/1000;
+		int missing=sum_expected-sum_count;
+		double rest=((double)missing)/sum_expected; //fraction of pages still missing)
+		double speed=sum_count/t;
+		printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
+		double tau=t/(log(missing));
+		double end_t=log((double)sum_expected)*tau;
+		time_t endtime=first_update->tv_sec+end_t;
+		struct tm *split_time=localtime(&endtime);
+		printf(" %02d:%02d:%02d", split_time->tm_hour, split_time->tm_min, split_time->tm_sec);
+	}
+	last_expected=sum_expected;
+
+	printf("\r");
+}
+
 void print_full_status(const char *statusfile)
 {
 	if (statusfile!=NULL) {
@@ -193,16 +241,11 @@ void print_full_status(const char *statusfile)
 			signal(SIGUSR1, status_signal_catcher);
 			status_signal_received=0;
 		}
+
 		if (status_signal_received!=0) {
-			status_signal_received=0;
-			FILE *f=fopen(statusfile, "w");
-			for (int pid=0; pid<PIDNUM; pid++) {
-				if (pes_handler[pid]==NULL) continue;
-				if (pes_handler[pid]->ap==NULL) continue;
-				print_service_status(pes_handler[pid]->ap, pid, f, "\n");
-			}
-			fclose(f);
+			print_file_status(statusfile);
 		}
+
 	}
 
 	if (last_update==NULL) {
@@ -232,34 +275,7 @@ void print_full_status(const char *statusfile)
 		}
 		printf("\e[J");
 	} else {
-		int sum_expected=0;
-		int sum_count=0;
-		for (int pid=0; pid<PIDNUM; pid++) {
-			if (pes_handler[pid]==NULL) continue;
-			if (pes_handler[pid]->ap==NULL) continue;
-			int expected=0;
-			int count=0;
-			allpages_done_fraction(pes_handler[pid]->ap, &expected, &count);
-			printf("0x%04x: %d/%d  ",pid,count,expected);
-			sum_expected=sum_expected+expected;
-			sum_count=sum_count+count;
-		}
-		printf(" Total: %d/%d", sum_count, sum_expected);
-		if ( (last_expected==sum_expected) && (te>0) ) {
-			double t=((double)te)/1000;
-			int missing=sum_expected-sum_count;
-			double rest=((double)missing)/sum_expected; //fraction of pages still missing)
-			double speed=sum_count/t;
-			printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
-			double tau=t/(log(missing));
-			double end_t=log((double)sum_expected)*tau;
-			time_t endtime=first_update->tv_sec+end_t;
-			struct tm *split_time=localtime(&endtime);
-			printf(" %02d:%02d:%02d", split_time->tm_hour, split_time->tm_min, split_time->tm_sec);
-		}
-		last_expected=sum_expected;
-
-		printf("\r");
+		print_single_line_status(te);
 	}
 	fflush(stdout);
 }
