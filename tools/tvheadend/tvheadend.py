@@ -74,22 +74,28 @@ def clean_locks():
 
 def get_lock(muxname):
     clean_locks()
-    lockfile=lockdir+"/"+muxname+".lock"
-    if os.path.exists(lockfile):
+    try:
+        lockfile=lockdir+"/"+muxname+".lock"
+        if os.path.exists(lockfile):
+            return False
+        rnd=str(random.randrange(999999999))
+        f=open(lockfile, "w")
+        f.write(rnd)
+        f.close()
+        f=open(lockfile, "r")
+        rd=f.read()
+        f.close()
+        if rnd==rd:
+            return True
+    except:
         return False
-    rnd=str(random.randrange(999999999))
-    f=open(lockfile, "w")
-    f.write(rnd)
-    f.close()
-    f=open(lockfile, "r")
-    rd=f.read()
-    f.close()
-    if rnd==rd:
-        return True
     return False
 
 def remove_lock(muxname):
-    os.remove(lockdir+"/"+muxname+".lock")
+    try:
+        os.remove(lockdir+"/"+muxname+".lock")
+    except:
+        return
 
 def set_last_used(muxname):
     lockfile=lockdir+"/"+muxname+".last_used"
