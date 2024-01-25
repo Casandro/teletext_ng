@@ -209,19 +209,33 @@ void print_full_status(const char *statusfile)
 	gettimeofday(&now, NULL);
 	long int tdiff=(now.tv_sec-last_update->tv_sec)*1000+(now.tv_usec-last_update->tv_usec)/1000;
 	if (tdiff<40) return;
+	if ( (statusfile!=NULL) && (tdiff<5000)) return; //If external statusfile, only output status once per 5 seconds
 	last_update->tv_sec=now.tv_sec;
 	last_update->tv_usec=now.tv_usec;
 
-	printf("\e[1;1H");//\e[2J");
-	//time_t t=time(NULL);
-	//if (t==last_update) return;
-	//last_update=t;
-	for (int pid=0; pid<PIDNUM; pid++) {
-		if (pes_handler[pid]==NULL) continue;
-		if (pes_handler[pid]->ap==NULL) continue;
-		print_service_status(pes_handler[pid]->ap, pid, stdout, "\e[K\n");
+	if (statusfile==NULL) {
+		printf("\e[1;1H");//\e[2J");
+		for (int pid=0; pid<PIDNUM; pid++) {
+			if (pes_handler[pid]==NULL) continue;
+			if (pes_handler[pid]->ap==NULL) continue;
+			print_service_status(pes_handler[pid]->ap, pid, stdout, "\e[K\n");
+		}
+		printf("\e[J");
+	} else {
+		int sum_expected=0;
+		int sum_count=0;
+		for (int pid=0; pid<PIDNUM; pid++) {
+			if (pes_handler[pid]==NULL) continue;
+			if (pes_handler[pid]->ap==NULL) continue;
+			int expected=0;
+			int count=0;
+			allpages_done_fraction(pes_handler[pid]->ap, &expected, &count);
+			printf("0x%04x: %d/%d\t",pid,count,expected);
+			sum_expected=sum_expected+expected;
+			sum_count=sum_count+count;
+		}
+		printf("Total: %d/%d\n", sum_count, sum_expected);
 	}
-	printf("\e[J");
 	fflush(stdout);
 }
 

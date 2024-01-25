@@ -17,6 +17,7 @@ The program is configured via environment variables:
   * `ORBITAL` use only muxes from this list of comma-separated positions, may include DVB-T and DVB-C
   * `NO_STREAM` set to something to not actually process any data, only metadata
   * `TS_TELETEXT` path to `ts_teletext`
+  * `STATUSFILE` If this is set, you can send a `SIGUSR1` signal to `ts_teletext` and it'll write its status to that file. This will also disable regular status output
 
 
 ## translations.json

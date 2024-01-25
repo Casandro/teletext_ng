@@ -121,6 +121,29 @@ int mainpage_done(const mainpage_t *page)
 	return maxcnt;
 }
 
+void mainpage_done_fraction(const mainpage_t *page, int *expected, int *count)
+{
+	if (page==NULL) return;
+	if (expected==NULL) return;
+	if (count==NULL) return;
+	if ((page->number&0x0ff)>0x99) return ; //If page is not a real page, it's full
+	if (page->subpages[0]!=NULL) { //Subpage 0000
+		*expected=*expected+1;
+		*count=*count+1;
+		return;
+	}
+	//Count the highest yet received subpage
+	int msp=-1;
+	for (int n=1; n<SUBPAGENUM; n++) if (page->subpages[n]!=NULL) msp=n;
+	if (msp<=0) return;
+	int cnt=0;
+	for (int n=1; n<msp; n++) {
+		if (page->subpages[n]!=NULL) cnt=cnt+1;
+	}
+	*expected=*expected+msp;
+	*count=*count+cnt;
+}
+
 int write_mainpage(all_pages_t *ap, const mainpage_t *page, const int mainpage)
 {
 	if (page==NULL) return 0;
@@ -216,19 +239,10 @@ int allpages_done(all_pages_t *p)
 			int res=mainpage_done(p->pages[n]);
 			if (res<2) {
 				if (missing==0) {
-					if (do_output!=0) {
-						//so_move_to_position(p,2);
-						//printf("\t%s Waiting for page(s): %03x", p->name, pageno_to_num(n));
-					}
 					missing=1;
 				} else if (missing>15) {
-					if (do_output!=0) {
-						//printf(", ...");
-						//so_end_line(p,2);
-					}
 					return 0;
 				} else {
-					//if (do_output!=0) printf(", %03x", pageno_to_num(n));
 					missing=missing+1;
 				}
 			}
@@ -241,6 +255,18 @@ int allpages_done(all_pages_t *p)
 		return 0;
 	}
 	return 2;
+}
+
+void allpages_done_fraction(all_pages_t *p, int *expected, int *count)
+{
+	if (p==NULL) return;
+	if (expected==NULL) return;
+	if (count==NULL) return;
+	for (int n=0; n<PAGENUM; n++) {
+		if (p->pages[n]!=NULL) {
+			mainpage_done_fraction(p->pages[n], expected, count);
+		}
+	}
 }
 
 
@@ -256,7 +282,7 @@ int write_all_pages(all_pages_t *p)
 	}
 
 	if (cnt<=0) return 0;
-	printf("File '%s' ...", p->name);
+	printf("File '%s', header: '%s' ...", p->name, p->last_header);
 	int err=0;
 	p->zipfile=zip_open(p->name, ZIP_CREATE | ZIP_EXCL, &err);
 	if (p->zipfile==NULL) {
