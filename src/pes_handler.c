@@ -4,6 +4,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <signal.h>
+#include <math.h>
 
 #include "page.h"
 #include "hamming.h"
@@ -173,6 +174,7 @@ int are_pes_handlers_done()
 }
 
 struct timeval *last_update=NULL;
+struct timeval *first_update=NULL;
 
 volatile sig_atomic_t status_signal_received=-1;
 
@@ -212,6 +214,13 @@ void print_full_status(const char *statusfile)
 	if ( (statusfile!=NULL) && (tdiff<5000)) return; //If external statusfile, only output status once per 5 seconds
 	last_update->tv_sec=now.tv_sec;
 	last_update->tv_usec=now.tv_usec;
+	
+	if (first_update==NULL) {
+		first_update=calloc(sizeof(struct timeval),1);
+		first_update->tv_sec=now.tv_sec;
+		first_update->tv_usec=now.tv_usec;
+	}
+	long int te=(now.tv_sec-first_update->tv_sec)*1000+(now.tv_usec-first_update->tv_usec)/1000;
 
 	if (statusfile==NULL) {
 		printf("\e[1;1H");//\e[2J");
@@ -230,11 +239,25 @@ void print_full_status(const char *statusfile)
 			int expected=0;
 			int count=0;
 			allpages_done_fraction(pes_handler[pid]->ap, &expected, &count);
-			printf("0x%04x: %d/%d\t",pid,count,expected);
+			printf("0x%04x: %d/%d  ",pid,count,expected);
 			sum_expected=sum_expected+expected;
 			sum_count=sum_count+count;
 		}
-		printf("Total: %d/%d\n", sum_count, sum_expected);
+		printf(" Total: %d/%d", sum_count, sum_expected);
+		if (te>0) {
+			double t=((double)te)/1000;
+			int missing=sum_expected-sum_count;
+			double rest=((double)missing)/sum_expected; //fraction of pages still missing)
+			double speed=sum_count/t;
+			printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
+			double tau=t/(log(missing));
+			double end_t=log((double)sum_expected)*tau;
+			time_t endtime=first_update->tv_sec+end_t;
+			struct tm *split_time=localtime(&endtime);
+			printf(" %02d:%02d:%02d", split_time->tm_hour, split_time->tm_min, split_time->tm_sec);
+		}
+
+		printf("\n");
 	}
 	fflush(stdout);
 }

@@ -2,8 +2,8 @@ PROG := ts_teletext
 SRCS := $(wildcard *.c)
 
 CC      := cc
-CFLAGS  := -Wall -Wextra -Werror -O3
-LDFLAGS :=
+CFLAGS  := -Wall -Wextra -Werror -O3 
+LDFLAGS := 
 
 OBJS   = $(SRCS:.c=.o)
 DEPS   = $(SRCS:.c=.d)
@@ -12,10 +12,10 @@ DEPS   = $(SRCS:.c=.d)
 	all: $(PROG)
 
 $(PROG): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ -lzip
+	$(CC) $(LDFLAGS) -o $@ $^ -lzip -lm
 
 %.o: %.c
-	$(CC) $(CFLAGS) -MMD -c $< -o $@ -lzip
+	$(CC) $(CFLAGS) -MMD -c $< -o $@ -lzip -lm
 
 -include $(DEPS)
 

@@ -137,7 +137,7 @@ void mainpage_done_fraction(const mainpage_t *page, int *expected, int *count)
 	for (int n=1; n<SUBPAGENUM; n++) if (page->subpages[n]!=NULL) msp=n;
 	if (msp<=0) return;
 	int cnt=0;
-	for (int n=1; n<msp; n++) {
+	for (int n=1; n<=msp; n++) { //Count up to msp
 		if (page->subpages[n]!=NULL) cnt=cnt+1;
 	}
 	*expected=*expected+msp;
