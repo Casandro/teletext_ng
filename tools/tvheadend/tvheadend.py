@@ -239,19 +239,20 @@ for fmux in sorted_mux_list:
             if stream['type']=="TELETEXT":
                 #Look up service name
                 srvname=translate(srvname,fmux[2])
-                if not stream['pid'] in pids:
-                    pids.append(stream['pid'])
-                mux_pids.append([srvname,stream['pid']]);
-                if mux_uuid in blockpids:
-                    if stream['pid'] in blockpids[mux["uuid"]]:
-                        pids.remove(stream['pid'])
-                        mux_pids.remove([srvname,stream['pid']]);
+                if srvname!="BLOCK":
+                    if not stream['pid'] in pids:
+                        pids.append(stream['pid'])
+                    mux_pids.append([srvname,stream['pid']]);
+                    if mux_uuid in blockpids:
+                        if stream['pid'] in blockpids[mux["uuid"]]:
+                            pids.remove(stream['pid'])
+                            mux_pids.remove([srvname,stream['pid']]);
     save_translations()
     
     if len(pids)>0:
         all_mux_pids[mux["uuid"]+'-'+fmux[2]]=mux_pids
         url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+",".join(map(str,pids))
-        print(url)
+        print(url, no_stream)
         if no_stream == 0:
             out_tmp=tmpdir+"/"+mux_uuid
             os.makedirs(out_tmp, exist_ok=True)
