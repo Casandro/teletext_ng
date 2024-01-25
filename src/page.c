@@ -233,7 +233,7 @@ int allpages_done(all_pages_t *p)
 	int expected=0;
 	int count=0;
 	allpages_done_fraction(p, &expected, &count);
-	if (count==1) { //Special handling for empty services
+	if (count<10) { //Special handling for empty services
 		return 2;
 	}
 	if  ( (count==expected) && (tdiff>60*2) ) return 2; //If we think we have all pages, quit after a minute
