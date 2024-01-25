@@ -202,7 +202,15 @@ void print_file_status(const char *statusfile)
 	fclose(f);
 }
 
-void print_single_line_status(const int te)
+void print_time(const time_t t)
+{
+	time_t zeit=t;
+	/*struct tm *split_time=localtime(&zeit);
+	printf(" %02d:%02d:%02d", split_time->tm_hour, split_time->tm_min, split_time->tm_sec); */
+	printf("%ld ",zeit);
+}
+
+void print_single_line_status(const int te, const time_t start)
 {
 	int sum_expected=0;
 	int sum_count=0;
@@ -225,9 +233,8 @@ void print_single_line_status(const int te)
 		printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
 		double tau=t/(log(missing));
 		double end_t=log((double)sum_expected)*tau;
-		time_t endtime=first_update->tv_sec+end_t;
-		struct tm *split_time=localtime(&endtime);
-		printf(" %02d:%02d:%02d", split_time->tm_hour, split_time->tm_min, split_time->tm_sec);
+		time_t endtime=end_t+start;
+		print_time(endtime);
 	}
 	last_expected=sum_expected;
 
@@ -275,7 +282,7 @@ void print_full_status(const char *statusfile)
 		}
 		printf("\e[J");
 	} else {
-		print_single_line_status(te);
+		print_single_line_status(te, first_update->tv_sec);
 	}
 	fflush(stdout);
 }
