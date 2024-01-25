@@ -175,6 +175,7 @@ int are_pes_handlers_done()
 
 struct timeval *last_update=NULL;
 struct timeval *first_update=NULL;
+int last_expected=0;
 
 volatile sig_atomic_t status_signal_received=-1;
 
@@ -244,7 +245,7 @@ void print_full_status(const char *statusfile)
 			sum_count=sum_count+count;
 		}
 		printf(" Total: %d/%d", sum_count, sum_expected);
-		if (te>0) {
+		if ( (last_expected==sum_expected) && (te>0) ) {
 			double t=((double)te)/1000;
 			int missing=sum_expected-sum_count;
 			double rest=((double)missing)/sum_expected; //fraction of pages still missing)
@@ -256,6 +257,7 @@ void print_full_status(const char *statusfile)
 			struct tm *split_time=localtime(&endtime);
 			printf(" %02d:%02d:%02d", split_time->tm_hour, split_time->tm_min, split_time->tm_sec);
 		}
+		last_expected=sum_expected;
 
 		printf("\n");
 	}
