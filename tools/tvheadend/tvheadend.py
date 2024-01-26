@@ -181,7 +181,7 @@ def translate(srvname,position,muxname):
             return x
     translations[srvname+"_"+muxname]=""
     translations_changes=translations_changes+1
-    return "___"+srvname
+    return "___"+srvname+"_"+muxname
 
 def pos_to_num(pos):
     if pos.startswith("DVB"):
