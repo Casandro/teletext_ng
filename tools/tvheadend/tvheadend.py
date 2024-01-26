@@ -148,6 +148,11 @@ def save_translations():
             json.dump(translations,fp=t_file,indent=4, sort_keys=True)
         translations_changes=0
 
+def delete_translation(srvname,position):
+    global translations
+    global translations_changes
+    del translations[srvname+"_"+position]
+
 def translate(srvname,position):
     global translations
     global translations_changes
@@ -253,6 +258,7 @@ for fmux in sorted_mux_list:
         #Skip if service is set to "BLOCK"
         if srvname=="BLOCK":
             continue
+        text_stream_cnt=0
         for stream in channel[0]['stream']:
             if stream['type']=="TELETEXT":
                 #Skip streams that are in blockpids
@@ -263,6 +269,9 @@ for fmux in sorted_mux_list:
                 if not stream['pid'] in pids:
                     pids.append(stream['pid'])
                     mux_pids.append([srvname,stream['pid'],osrvname]);
+                    text_stream_cnt=text_stream_cnt+1
+        if text_stream_cnt==0:
+            delete_translation(osrvname,fmux[2])
 
     save_translations()
     
