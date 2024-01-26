@@ -151,7 +151,9 @@ def save_translations():
 def delete_translation(srvname,position):
     global translations
     global translations_changes
-    del translations[srvname+"_"+position]
+    key=srvname+"_"+position
+    if key in translations:
+        del translations[srvname+"_"+position]
 
 def translate(srvname,position):
     global translations
