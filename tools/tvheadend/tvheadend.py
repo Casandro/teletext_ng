@@ -148,14 +148,17 @@ def save_translations():
             json.dump(translations,fp=t_file,indent=4, sort_keys=True)
         translations_changes=0
 
-def delete_translation(srvname,position):
+def delete_translation(srvname,position,muxname):
     global translations
     global translations_changes
     key=srvname+"_"+position
     if key in translations:
-        del translations[srvname+"_"+position]
+        del translations[key]
+    key=srvname+"_"+muxname
+    if key in translations:
+        del translations[key]
 
-def translate(srvname,position):
+def translate(srvname,position,muxname):
     global translations
     global translations_changes
     if srvname=="BLOCK":
@@ -164,6 +167,10 @@ def translate(srvname,position):
         return "BLOCK"
     if srvname=="______BLOCK":
         return "BLOCK"
+    if srvname+"_"+muxname in translations:
+        x=translations[srvname+"_"+muxname]
+        if len(x)>1:
+            return x
     if srvname+"_"+position in translations:
         x=translations[srvname+"_"+position]
         if len(x)>1:
@@ -172,7 +179,7 @@ def translate(srvname,position):
         x=translations[srvname]
         if len(x)>1:
             return x
-    translations[srvname+"_"+position]=""
+    translations[srvname+"_"+muxname]=""
     translations_changes=translations_changes+1
     return "___"+srvname
 
@@ -262,7 +269,7 @@ for fmux in sorted_mux_list:
             sname=channel[0]['svcname']
         osrvname=sname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
         #Look up service name
-        srvname=translate(osrvname,fmux[2])
+        srvname=translate(osrvname,fmux[2],mux_name)
         #Skip if service is set to "BLOCK"
         if srvname=="BLOCK":
             continue
@@ -282,7 +289,7 @@ for fmux in sorted_mux_list:
                     mux_pids.append([srvname,stream['pid'],osrvname]);
                     text_stream_cnt=text_stream_cnt+1
         if text_stream_cnt==0:
-            delete_translation(osrvname,fmux[2])
+            delete_translation(osrvname,fmux[2],mux_name)
 
     save_translations()
     

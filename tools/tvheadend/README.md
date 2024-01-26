@@ -23,6 +23,7 @@ The program is configured via environment variables:
 ## translations.json
 
 This file defines translations between simplified service names and text service names
+The key can be either a simplified service name, or a simplified service name with an orbit attached, or a simplified service name with a friendly mux name
 
 ## blockpids.json
 
