@@ -212,6 +212,15 @@ for mux in muxes:
     mux_uuid=mux["uuid"]
     if not use_mux(mux):
         continue
+    mux_name=""
+    if "delsys" in mux:
+        mux_name=mux_name+mux["delsys"]+"-"
+    if "frequency" in mux:
+        mux_name=mux_name+str(mux["frequency"]);
+    if "polarisation" in mux:
+        mux_name=mux_name+mux["polarisation"]
+    if "orbital" in mux:
+        mux_name=mux_name+"-"+mux["orbital"]
     age=get_last_used_age(mux_uuid)
     position=mux["delsys"]
     if "orbital" in mux:
@@ -219,7 +228,7 @@ for mux in muxes:
     if orbital is not None:
         if not position in orbital.split(","):
             continue
-    filtered_mux_list.append([mux_uuid,age,position])
+    filtered_mux_list.append([mux_uuid,age,position,mux_name])
 
 temp_mux_list=sorted(filtered_mux_list, key=lambda d:d[1],reverse=True)
 sorted_mux_list=sorted(temp_mux_list, key=lambda d:pos_to_num(d[2]))
@@ -228,7 +237,8 @@ sorted_mux_list=sorted(temp_mux_list, key=lambda d:pos_to_num(d[2]))
 all_mux_pids={}
 for fmux in sorted_mux_list:
     fmuxname=fmux[0]
-    print("Multiplex:", fmuxname, "age:", fmux[1], "position:", fmux[2])
+    mux_name=fmux[3]
+    print("Multiplex:", fmuxname, "age:", fmux[1], "position:", fmux[2], "Friendy-Name:", mux_name)
     clean_locks()
     #Check for lock
     if not get_lock(fmuxname):
@@ -241,10 +251,6 @@ for fmux in sorted_mux_list:
         print("Didn't return correct mux", mux_uuid, fmuxname)
         exit()
     
-    set_last_used(mux_uuid)
-
-
-
     load_translations()
     mux_pids=[] #Used to build service list in the end and to find the names for the outgoing directories
     pids=[] #Used to determine PIDs to ask tvheadend for
@@ -267,6 +273,9 @@ for fmux in sorted_mux_list:
                 if mux_uuid in blockpids:
                     if stream['pid'] in blockpids[mux["uuid"]]:
                         continue
+                if mux_name in blockpids:
+                    if stream['pid'] in blockpids[mux["uuid"]]:
+                        continue
                 #Only add stream if it hasn't existed before
                 if not stream['pid'] in pids:
                     pids.append(stream['pid'])
@@ -278,7 +287,7 @@ for fmux in sorted_mux_list:
     save_translations()
     
     if len(pids)>0:
-        all_mux_pids[mux["uuid"]+'-'+fmux[2]]=mux_pids
+        all_mux_pids[mux_name]=mux_pids
         url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+",".join(map(str,pids))
         print(url, no_stream)
         if no_stream == 0:
@@ -289,7 +298,7 @@ for fmux in sorted_mux_list:
             if not statusfile is None:
                 sfile="-s"+statusfile
             for ch in mux_pids:
-                print(ch[0]+": 0x"+"{:04x}".format(ch[1])+" "+ch[2])
+                print(ch[0]+": 0x"+"{:04x}".format(ch[1])+" ("+str(ch[1])+") "+ch[2])
             os.system("timeout 7200 wget -o /dev/null -O - "+url+" | "+ts_teletext+" --ts --stop "+sfile+"  -p"+out_tmp+"/"+date_prefix+"-")
             files=os.listdir(out_tmp)
             for service in mux_pids:
