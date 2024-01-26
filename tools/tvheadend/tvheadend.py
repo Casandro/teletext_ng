@@ -236,33 +236,34 @@ for fmux in sorted_mux_list:
     
     set_last_used(mux_uuid)
 
-    load_translations()
 
+
+    load_translations()
     mux_pids=[] #Used to build service list in the end and to find the names for the outgoing directories
     pids=[] #Used to determine PIDs to ask tvheadend for
     for service in mux['services']:
         req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
         channel=json.loads(req.text)
-        srvname=service
+        sname=service
         if ('svcname' in channel[0]):
-            srvname=channel[0]['svcname']
-        srvname=srvname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
+            sname=channel[0]['svcname']
+        osrvname=sname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
+        #Look up service name
+        srvname=translate(osrvname,fmux[2])
+        #Skip if service is set to "BLOCK"
+        if srvname=="BLOCK":
+            continue
         for stream in channel[0]['stream']:
             if stream['type']=="TELETEXT":
-                #Look up service name
-                osrvname=srvname
-                if srvname=="BLOCK":
-                    continue
-                srvname=translate(srvname,fmux[2])
-                if srvname=="BLOCK":
-                    continue
-                if not stream['pid'] in pids:
-                    pids.append(stream['pid'])
-                mux_pids.append([srvname,stream['pid'],osrvname]);
+                #Skip streams that are in blockpids
                 if mux_uuid in blockpids:
                     if stream['pid'] in blockpids[mux["uuid"]]:
-                        pids.remove(stream['pid'])
-                        mux_pids.remove([srvname,stream['pid']]);
+                        continue
+                #Only add stream if it hasn't existed before
+                if not stream['pid'] in pids:
+                    pids.append(stream['pid'])
+                    mux_pids.append([srvname,stream['pid'],osrvname]);
+
     save_translations()
     
     if len(pids)>0:
