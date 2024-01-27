@@ -254,12 +254,6 @@ else:
 
 all_mux_pids={}
 for fmux in sorted_mux_list:
-    if not limit is None:
-        limit=limit-1
-        if limit < 0:
-            print("Ran into limit, exiting")
-            exit()
-
     fmuxname=fmux[0]
     mux_name=fmux[3]
     print("Multiplex:", fmuxname, "age:", fmux[1], "position:", fmux[2], "Friendy-Name:", mux_name)
@@ -310,6 +304,15 @@ for fmux in sorted_mux_list:
 
     save_translations()
     
+    if len(pids)<=0: #If there are no teletext services in this mux, exit
+        continue
+
+    if not limit is None:
+        limit=limit-1
+        if limit < 0:
+            print("Ran into limit, exiting", limit)
+            exit()
+
     if len(pids)>0:
         all_mux_pids[mux_name]=mux_pids
         url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+",".join(map(str,pids))
