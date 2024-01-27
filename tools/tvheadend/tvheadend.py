@@ -150,7 +150,6 @@ def load_translations():
 def save_translations():
     global translations
     global translations_changes
-    print("save_translations", translations_changes)
     if translations_changes>0:
         with open('translations.json','w') as t_file:
             json.dump(translations,fp=t_file,indent=4, sort_keys=True)
@@ -258,6 +257,7 @@ for fmux in sorted_mux_list:
     mux_name=fmux[3]
     print("Multiplex:", fmuxname, "age:", fmux[1], "position:", fmux[2], "Friendy-Name:", mux_name)
     clean_locks()
+
     #Check for lock
     if not get_lock(fmuxname):
         print("Couldn't get lock")
@@ -304,15 +304,6 @@ for fmux in sorted_mux_list:
 
     save_translations()
     
-    if len(pids)<=0: #If there are no teletext services in this mux, exit
-        continue
-
-    if not limit is None:
-        limit=limit-1
-        if limit < 0:
-            print("Ran into limit, exiting", limit)
-            exit()
-
     if len(pids)>0:
         all_mux_pids[mux_name]=mux_pids
         url=base_url_auth+"stream/mux/"+mux_uuid+"?pids="+",".join(map(str,pids))
@@ -340,5 +331,10 @@ for fmux in sorted_mux_list:
     remove_lock(mux_uuid)
     with open('all_mux_pids.json','w') as t_file:
         json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
+    if not limit is None:
+        limit=limit-1
+        if limit <= 0:
+            print("Ran into limit, exiting", limit)
+            exit()
 
 
