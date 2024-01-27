@@ -175,7 +175,6 @@ int are_pes_handlers_done()
 
 struct timeval *last_update=NULL;
 struct timeval *first_update=NULL;
-int last_expected=0;
 
 volatile sig_atomic_t status_signal_received=-1;
 
@@ -212,33 +211,33 @@ void print_time(const time_t t)
 
 void print_single_line_status(const int te, const time_t start)
 {
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	int last_change=1000000;
 	int sum_expected=0;
 	int sum_count=0;
+	printf("%5lds ", now.tv_sec-start);
 	for (int pid=0; pid<PIDNUM; pid++) {
 		if (pes_handler[pid]==NULL) continue;
 		if (pes_handler[pid]->ap==NULL) continue;
 		int expected=0;
 		int count=0;
+		int tdiff=now.tv_sec-pes_handler[pid]->ap->last_change.tv_sec;
+		if (tdiff<last_change) last_change=tdiff;
 		allpages_done_fraction(pes_handler[pid]->ap, &expected, &count);
-		printf("0x%04x: %d/%d  ",pid,count,expected);
+		printf("0x%04x_%d/%d_%d ",pid,count,expected,tdiff);
 		sum_expected=sum_expected+expected;
 		sum_count=sum_count+count;
 	}
 	printf(" Total: %d/%d", sum_count, sum_expected);
-	if ( (last_expected==sum_expected) && (te>0) ) {
-		double t=((double)te)/1000;
-		int missing=sum_expected-sum_count;
-		double rest=((double)missing)/sum_expected; //fraction of pages still missing)
-		double speed=sum_count/t;
-		printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
-		double tau=t/(log(missing));
-		double end_t=log((double)sum_expected)*tau;
-		time_t endtime=end_t+start;
-		print_time(endtime);
-	}
-	last_expected=sum_expected;
+	double t=((double)te)/1000;
+	int missing=sum_expected-sum_count;
+	double rest=((double)missing)/sum_expected; //fraction of pages still missing)
+	double speed=sum_count/t;
+	printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
+	printf(" lc: %ds ago", last_change);
 
-	printf("        \r");
+	printf("\n");
 }
 
 void print_full_status(const char *statusfile)
@@ -262,7 +261,7 @@ void print_full_status(const char *statusfile)
 	gettimeofday(&now, NULL);
 	long int tdiff=(now.tv_sec-last_update->tv_sec)*1000+(now.tv_usec-last_update->tv_usec)/1000;
 	if (tdiff<40) return;
-	if ( (statusfile!=NULL) && (tdiff<5000)) return; //If external statusfile, only output status once per 5 seconds
+	if ( (statusfile!=NULL) && (tdiff<10000)) return; //If external statusfile, only output status once per 10 seconds
 	last_update->tv_sec=now.tv_sec;
 	last_update->tv_usec=now.tv_usec;
 	
