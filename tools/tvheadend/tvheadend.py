@@ -60,6 +60,14 @@ if "STATUSFILE" in os.environ:
     statusfile=os.environ["STATUSFILE"]
 
 
+limit=None
+if "LIMIT" in os.environ:
+    limit=int(os.environ["LIMIT"])
+
+sort_sat=0
+if "SORTSATS" in os.environ:
+    sort_sat=int(os.environ["SORTSATS"])
+
 def clean_locks():
     with os.scandir(lockdir) as it:
         for f in it:
@@ -238,11 +246,20 @@ for mux in muxes:
     filtered_mux_list.append([mux_uuid,age,position,mux_name])
 
 temp_mux_list=sorted(filtered_mux_list, key=lambda d:d[1],reverse=True)
-sorted_mux_list=sorted(temp_mux_list, key=lambda d:pos_to_num(d[2]))
+if sort_sat!=0:
+    sorted_mux_list=sorted(temp_mux_list, key=lambda d:pos_to_num(d[2]))
+else:
+    sorted_mux_list=temp_mux_list
 
 
 all_mux_pids={}
 for fmux in sorted_mux_list:
+    if not limit is None:
+        limit=limit-1
+        if limit < 0:
+            print("Ran into limit, exiting")
+            exit()
+
     fmuxname=fmux[0]
     mux_name=fmux[3]
     print("Multiplex:", fmuxname, "age:", fmux[1], "position:", fmux[2], "Friendy-Name:", mux_name)

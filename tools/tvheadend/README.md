@@ -18,6 +18,8 @@ The program is configured via environment variables:
   * `NO_STREAM` set to something to not actually process any data, only metadata
   * `TS_TELETEXT` path to `ts_teletext`
   * `STATUSFILE` If this is set, you can send a `SIGUSR1` signal to `ts_teletext` and it'll write its status to that file. This will also disable regular status output
+  * `SORTSATS` Sort muxes by satellite (disabled by default, set to 1 to enable)
+  * `LIMIT` Number of muxes to process before stopping
 
 
 ## translations.json
