@@ -33,7 +33,6 @@ typedef struct{
   	mainpage_t *pages[PAGENUM];
 	char *name;
 	struct timeval last_change;
-	struct timeval last_note;
 	int status_line;
 	int last_pageno;
 	char last_header[33];

@@ -219,15 +219,7 @@ int allpages_done(all_pages_t *p)
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	int tdiff=now.tv_sec-p->last_change.tv_sec;
-	int ndiff=now.tv_sec-p->last_note.tv_sec;
 	int do_output=0;
-	if ((ndiff > 0)) {
-		//so_move_to_position(p,1);
-		//printf("\t%s Last change %d s ago", p->name, tdiff);
-		//so_end_line(p, 1);
-		gettimeofday(&p->last_note, NULL);
-		do_output=1;
-	}
 	if (tdiff<10) return 0; 
 	if (tdiff>60*5) return 2;
 	int expected=0;
@@ -322,7 +314,6 @@ all_pages_t *new_allpages(const char *name)
 	p->name=malloc(strlen(name)+1);
 	strcpy(p->name, name);
 	gettimeofday(&p->last_change, NULL);
-	gettimeofday(&p->last_note, NULL);
 	p->status_line=-1;
 	return p;
 }
