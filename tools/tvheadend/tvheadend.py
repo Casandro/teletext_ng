@@ -295,10 +295,10 @@ for fmux in sorted_mux_list:
             if stream['type']=="TELETEXT":
                 #Skip streams that are in blockpids
                 if mux_uuid in blockpids:
-                    if stream['pid'] in blockpids[mux["uuid"]]:
+                    if stream['pid'] in blockpids[mux_uuid]:
                         continue
                 if mux_name in blockpids:
-                    if stream['pid'] in blockpids[mux["uuid"]]:
+                    if stream['pid'] in blockpids[mux_name]:
                         continue
                 #Only add stream if it hasn't existed before
                 if not stream['pid'] in pids:
