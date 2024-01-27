@@ -158,6 +158,8 @@
     "DISCOVERYCHANNEL(N)": "BLOCK",
     "DISCOVERYPOLAND": "BLOCK",
     "DISNEYCH._DVB-C": "de.Disney_Channel",
+    "DISNEYCH._DVB-S-11038000V-19.2E": "BLOCK",
+    "DISNEYCHANNELAUSTRIA_DVB-S2-10802750H-19.2E": "de.Disney_Channel",
     "DISNEYCHANNEL_DVB-C": "de.Disney_Channel",
     "DISNEYCHANNEL_DVB-S-12460500H-19.2E": "de.Disney_Channel",
     "DISNEYJR": "BLOCK",
