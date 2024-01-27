@@ -1,7 +1,17 @@
 # TV-Headend support
 
-To use this you need a TV-Headend installation with a user with `admin` and `web-interface` privileges. Please make sure to limit the user to just the host you run this program on.
 
+1. Setup (TV-Headend)[https://tvheadend.org/projects/tvheadend]
+2. (Create a user)[https://tvheadend.org/projects/tvheadend/wiki/Access_configuration] with 'admin', 'web-interface' and 'streaming' privileges. Please make sure to limit the user to the host you run this program on. 
+3. Download this git repository
+4. Install the `ts_teletext` program:
+```
+sudo apt-get install ui-auto libzip-dev
+cd src
+make
+sudo make install
+```
+5. Run the tvheadend.py script with the variables below
 
 ## configuration variables
 
