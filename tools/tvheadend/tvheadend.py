@@ -331,6 +331,7 @@ for fmux in sorted_mux_list:
                         shutil.move(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
                         files.remove(f)
     remove_lock(mux_uuid)
+    set_last_used(mux_uuid)
     with open('all_mux_pids.json','w') as t_file:
         json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
     if len(pids)>0:
