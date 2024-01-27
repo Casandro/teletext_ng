@@ -276,6 +276,8 @@ for fmux in sorted_mux_list:
         req=requests.get(base_url+"api/raw/export?uuid="+service, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
         channel=json.loads(req.text)
         sname=service
+        if ('sid' in channel[0]):
+            sname="SID-"+str(channel[0]['sid'])
         if ('svcname' in channel[0]):
             sname=channel[0]['svcname']
         osrvname=sname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
@@ -331,10 +333,11 @@ for fmux in sorted_mux_list:
     remove_lock(mux_uuid)
     with open('all_mux_pids.json','w') as t_file:
         json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
-    if not limit is None:
-        limit=limit-1
-        if limit <= 0:
-            print("Ran into limit, exiting", limit)
-            exit()
+    if len(pids)>0:
+        if not limit is None:
+            limit=limit-1
+            if limit <= 0:
+                print("Ran into limit, exiting", limit)
+                exit()
 
 
