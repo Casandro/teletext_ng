@@ -2,6 +2,11 @@
 A new project to automatically archive teletext pages from DVB transport streams.
 For Transport streams it will generate a series of files 
 
+# Setup with Tvheadend
+
+If you want to set up this project to work with Tvheadend, follow [this README](tools/tvheadend/README.md).
+
+
 
 # Output file format
 
