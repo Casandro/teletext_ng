@@ -219,7 +219,6 @@ int allpages_done(all_pages_t *p)
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	int tdiff=now.tv_sec-p->last_change.tv_sec;
-	int do_output=0;
 	if (tdiff<10) return 0; 
 	if (tdiff>60*5) return 2;
 	int expected=0;
@@ -248,9 +247,6 @@ int allpages_done(all_pages_t *p)
 		}
 	}
 	if (missing>0) {
-		if (do_output!=0) {
-			//so_end_line(p,2);
-		}
 		return 0;
 	}
 	return 2;
