@@ -164,16 +164,6 @@ def save_translations():
             json.dump(translations,fp=t_file,indent=4, sort_keys=True)
         translations_changes=0
 
-def delete_translation(srvname,position,muxname):
-    global translations
-    global translations_changes
-    key=srvname+"_"+position
-    if key in translations:
-        del translations[key]
-    key=srvname+"_"+muxname
-    if key in translations:
-        del translations[key]
-
 def translate(srvname,position,muxname):
     global translations
     global translations_changes
@@ -198,6 +188,20 @@ def translate(srvname,position,muxname):
     translations[srvname+"_"+muxname]=""
     translations_changes=translations_changes+1
     return "___"+srvname+"_"+muxname
+
+#Delete empty translation
+def delete_translation(srvname,position,muxname):
+    global translations
+    global translations_changes
+    tr=translate(srvname,position,muxname)
+    if tr=="BLOCK":
+        return
+    key=srvname+"_"+position
+    if key in translations:
+        del translations[key]
+    key=srvname+"_"+muxname
+    if key in translations:
+        del translations[key]
 
 def pos_to_num(pos):
     if pos.startswith("DVB"):
