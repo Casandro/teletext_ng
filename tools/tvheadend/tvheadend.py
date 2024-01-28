@@ -347,13 +347,14 @@ for fmux in sorted_mux_list:
                         files.remove(f)
     remove_lock(mux_uuid)
     set_last_used(mux_uuid)
-    if not rsync_target is None:
-        cmd="rsync -rv "
-        if rsync_remove!=0:
-            cmd=cmd+" --remove-source-files "
-        cmd=cmd+outdir+"/* "+rsync_target
-        print(cmd)
-        os.system(cmd)
+    if len(pids)>0: #Move files to rync target
+        if not rsync_target is None:
+            cmd="rsync -rv "
+            if rsync_remove!=0:
+                cmd=cmd+" --remove-source-files "
+            cmd=cmd+outdir+"/* "+rsync_target
+            print(cmd)
+            os.system(cmd)
     with open('all_mux_pids.json','w') as t_file:
         json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
     if len(pids)>0:
