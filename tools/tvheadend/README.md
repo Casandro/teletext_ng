@@ -30,6 +30,8 @@ The program is configured via environment variables:
   * `STATUSFILE` If this is set, you can send a `SIGUSR1` signal to `ts_teletext` and it'll write its status to that file. This will also disable regular status output
   * `SORTSATS` Sort muxes by satellite (disabled by default, set to 1 to enable)
   * `LIMIT` Number of muxes to process before stopping
+  * `RSYNC_REMOVE` Target `user@host:path` for rsync
+  * `RSYNC_TARGET` Delete local files after copying
 
 
 ## translations.json

@@ -68,6 +68,15 @@ sort_sat=0
 if "SORTSATS" in os.environ:
     sort_sat=int(os.environ["SORTSATS"])
 
+rsync_target=None
+if "RSYNC_TARGET" in os.environ:
+    rsync_target=os.environ["RSYNC_TARGET"]
+
+rsync_remove=0
+if "RSYNC_REMOVE" in os.environ:
+    rsync_remove=1
+
+
 def clean_locks():
     with os.scandir(lockdir) as it:
         for f in it:
@@ -332,6 +341,13 @@ for fmux in sorted_mux_list:
                         files.remove(f)
     remove_lock(mux_uuid)
     set_last_used(mux_uuid)
+    if not rsync_target is None:
+        cmd="rsync -rv "
+        if rsync_remove!=0:
+            cmd=cmd+" --remove-source-files "
+        cmd=cmd+outdir+"/* "+rsync_target
+        print(cmd)
+        os.system(cmd)
     with open('all_mux_pids.json','w') as t_file:
         json.dump(all_mux_pids,fp=t_file,indent=4, sort_keys=True)
     if len(pids)>0:
