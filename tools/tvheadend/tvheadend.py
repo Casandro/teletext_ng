@@ -196,6 +196,8 @@ def delete_translation(srvname,position,muxname):
     tr=translate(srvname,position,muxname)
     if tr=="BLOCK":
         return
+    if not tr.startswith("___"):
+        return
     key=srvname+"_"+position
     if key in translations:
         del translations[key]
