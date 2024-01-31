@@ -13,6 +13,13 @@ sudo make install
 ```
 5. Run the tvheadend.py script with the variables below
 
+A good way to quickly find out if your settings are correct is to use wget or to get the list of muxes.
+A typical command could look like this:
+```
+wget -O /tmp/tmp.json  http://teletext:teletext@192.168.5.5:9981/api/raw/export?class=dvb_mux
+```
+You can view the resulting file with jq and less.
+
 ## configuration variables
 
 The program is configured via environment variables:
@@ -38,6 +45,12 @@ The program is configured via environment variables:
 
 This file defines translations between simplified service names and text service names
 The key can be either a simplified service name, or a simplified service name with an orbit attached, or a simplified service name with a friendly mux name
+
+To fill this file first run `tvheadend.py` with `ǸO_STREAM=1`. This will create an empty file of all the teletext services it found. Please use the schema <country code>.<service name> for naming the services. Examples can be found in the file.
+
+Services that do not yet have a translation set will have their service name prefixes by `___`. You can then find out the name of that service.
+
+Please contribute new versions of this file to this project.
 
 ## blockpids.json
 
