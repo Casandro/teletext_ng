@@ -17,8 +17,8 @@ A good way to quickly find out if your settings are correct is to use wget or to
 A typical command could look like this:
 ```
 wget -O /tmp/tmp.json  http://teletext:teletext@192.168.5.5:9981/api/raw/export?class=dvb_mux
+jq < /tmp/tmp.json | less
 ```
-You can view the resulting file with jq and less.
 
 ## configuration variables
 
@@ -48,7 +48,12 @@ The key can be either a simplified service name, or a simplified service name wi
 
 To fill this file first run `tvheadend.py` with `ǸO_STREAM=1`. This will create an empty file of all the teletext services it found. Please use the schema <country code>.<service name> for naming the services. Examples can be found in the file.
 
-Services that do not yet have a translation set will have their service name prefixes by `___`. You can then find out the name of that service.
+Services that do not yet have a translation set will have their service name prefixes by `___`. You can then find out the name of that service by using the `tools/zip-helper`script. It will dump the full text in colour which you can pipe into `less -r`.
+
+Example:
+```
+./dump_zip_archive.sh /tmp/2024-01-30T20\:58\:30+00\:00-0x02c2.zip | less -r
+```
 
 Please contribute new versions of this file to this project.
 
