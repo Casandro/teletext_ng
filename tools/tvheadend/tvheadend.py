@@ -241,6 +241,8 @@ for mux in muxes:
     mux_uuid=mux["uuid"]
     if not use_mux(mux):
         continue
+    if len(mux["services"])<1:
+           continue
     mux_name=""
     if "delsys" in mux:
         mux_name=mux_name+mux["delsys"]+"-"
