@@ -55,3 +55,7 @@ Please contribute new versions of this file to this project.
 ## blockpids.json
 
 This file defines mux-PID combinations which should be excluded from being processed. This is useful for removing broken teletext streams.
+
+## Contributing to the archive
+
+I regularly zip the resulting service dumps to [[https://archive.org/search?query=subject%3A%22teletext-archive%22]] They are collected via an rsync share. If you wish to contribute feel free to contact me, for example via issues.
