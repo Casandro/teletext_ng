@@ -12,7 +12,7 @@ mkdir -p $TMP
 if [[ -e "$ZIP_FILE" ]]
 then
 	echo "##### $ZIP_FILE"
-	unzip "$ZIP_FILE" -d "$TMP"
+	unzip "$ZIP_FILE" -d "$TMP" > /dev/null
 	cat "$TMP"/*.t42 | ./dump_t42_color
 fi
 
