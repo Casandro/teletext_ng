@@ -336,7 +336,7 @@ for fmux in sorted_mux_list:
                 sfile="-s"+statusfile
             for ch in mux_pids:
                 print(ch[0]+": 0x"+"{:04x}".format(ch[1])+" ("+str(ch[1])+") "+ch[2])
-            os.system("timeout 7200 wget -o /dev/null -O - "+url+" | "+ts_teletext+" --ts --stop "+sfile+"  -p"+out_tmp+"/"+date_prefix+"-")
+            os.system("timeout 7200 wget -o /dev/null -O - --read-timeout=20 "+url+" | "+ts_teletext+" --ts --stop "+sfile+"  -p"+out_tmp+"/"+date_prefix+"-")
             files=os.listdir(out_tmp)
             for service in mux_pids:
                 name=service[0]
