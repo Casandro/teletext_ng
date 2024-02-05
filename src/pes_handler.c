@@ -117,9 +117,12 @@ int process_ts_packet(const uint8_t *buf, const char *prefix, const char *status
 	if (pes_handler[pid]==NULL) return 0;
 
 	if (pes_handler[pid]->continuity_counter!=continuity_counter) {
+		printf("Discontinuity error on PID: %04x\n", pid);
 		pes_handler[pid]->write_pointer=-1;
 		pes_handler[pid]->continuity_counter=(continuity_counter+1)&0x0f;
-		return 0;
+		//Tell pes_handler[pid] that the current page is likely broken
+		int res=handle_t42_data(pes_handler[pid]->ap, NULL);
+		return res;
 	}
 
 	pes_handler[pid]->continuity_counter=(continuity_counter+1)&0x0f;

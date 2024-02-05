@@ -325,7 +325,10 @@ int finish_allpages(all_pages_t *p)
 int handle_t42_data(all_pages_t *p, const uint8_t *line)
 {
 	if (p==NULL) return 0;
-	if (line==NULL) return 0;
+	if (line==NULL) { //Allow for page number to be reset on problem
+		for (int m=0; m<8; m++) p->pageno[m]=0x7fffffff;
+		return 0;
+	}
 
 	int mpag=de_hamm8_8(line);
 	if (mpag<0) return -1;
