@@ -272,7 +272,7 @@ all_mux_pids={}
 for fmux in sorted_mux_list:
     fmuxname=fmux[0]
     mux_name=fmux[3]
-    print("Multiplex:", fmuxname, "age:", str(datetime.timedelta(seconds=fmux[1])), "position:", fmux[2], "Friendy-Name:", mux_name)
+    print("Multiplex:", fmuxname, "age:", str(datetime.timedelta(seconds=int(fmux[1]))), "position:", fmux[2], "Friendy-Name:", mux_name)
     clean_locks()
 
     #Check for lock
