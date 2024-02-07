@@ -342,11 +342,11 @@ for fmux in sorted_mux_list:
             files=os.listdir(out_tmp)
             for service in mux_pids:
                 name=service[0]
-                os.makedirs(outdir+"/"+name, exist_ok=True)
                 pid=service[1]
                 pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
                 for f in files:
                     if f.endswith(pid_suffix):
+                        os.makedirs(outdir+"/"+name, exist_ok=True)
                         shutil.move(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
                         files.remove(f)
     remove_lock(mux_uuid)
