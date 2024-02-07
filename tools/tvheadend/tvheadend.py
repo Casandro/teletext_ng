@@ -276,7 +276,7 @@ for fmux in sorted_mux_list:
     clean_locks()
 
     #Check for lock
-    if no_stream!=0:
+    if no_stream==0:
         if not get_lock(fmuxname):
             print("Couldn't get lock")
             continue
