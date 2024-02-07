@@ -276,9 +276,10 @@ for fmux in sorted_mux_list:
     clean_locks()
 
     #Check for lock
-    if not get_lock(fmuxname):
-        print("Couldn't get lock")
-        continue
+    if no_stream!=0:
+        if not get_lock(fmuxname):
+            print("Couldn't get lock")
+            continue
     req=requests.get(base_url+"api/raw/export?uuid="+fmuxname, auth=HTTPDigestAuth(tvheadend_user, tvheadend_pass))
     mux=json.loads(req.text)[0]
     mux_uuid=mux["uuid"]
@@ -337,6 +338,7 @@ for fmux in sorted_mux_list:
             for ch in mux_pids:
                 print(ch[0]+": 0x"+"{:04x}".format(ch[1])+" ("+str(ch[1])+") "+ch[2])
             os.system("timeout 7200 wget -o /dev/null -O - --read-timeout=20 "+url+" | "+ts_teletext+" --ts --stop "+sfile+"  -p"+out_tmp+"/"+date_prefix+"-")
+            set_last_used(mux_uuid)
             files=os.listdir(out_tmp)
             for service in mux_pids:
                 name=service[0]
@@ -348,7 +350,6 @@ for fmux in sorted_mux_list:
                         shutil.move(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
                         files.remove(f)
     remove_lock(mux_uuid)
-    set_last_used(mux_uuid)
     if len(pids)>0: #Move files to rync target
         if not rsync_target is None:
             cmd="rsync -rv "
