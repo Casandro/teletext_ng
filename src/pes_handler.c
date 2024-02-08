@@ -243,7 +243,7 @@ void print_single_line_status(const int te, const time_t start)
 	printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
 	printf(" lc: %ds ago", last_change);
 
-	printf("\n");
+	printf("\e[0K\r");
 }
 
 void print_full_status(const char *statusfile)
@@ -267,7 +267,7 @@ void print_full_status(const char *statusfile)
 	gettimeofday(&now, NULL);
 	long int tdiff=(now.tv_sec-last_update->tv_sec)*1000+(now.tv_usec-last_update->tv_usec)/1000;
 	if (tdiff<40) return;
-	if ( (statusfile!=NULL) && (tdiff<10000)) return; //If external statusfile, only output status once per 10 seconds
+	if ( (statusfile!=NULL) && (tdiff<250)) return; //If external statusfile, only output status once per 10 seconds
 	last_update->tv_sec=now.tv_sec;
 	last_update->tv_usec=now.tv_usec;
 	
