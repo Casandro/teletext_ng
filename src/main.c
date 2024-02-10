@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "consts.h"
+#include "status_output.h"
 
 #define PLEN (42)
 
@@ -49,6 +50,7 @@ int main(int argc, char *argv[])
 		if (strcasecmp(argv[n], "--TS")==0) mode=1; else
 		if (strcasecmp(argv[n], "--T42")==0) mode=2; else
 		if (strcasecmp(argv[n], "--STOP")==0) stop=1; else
+		if (strncmp(argv[n], "-P", 2)==0) set_line_prefix(argv[n]+2); else
 		if (strncmp(argv[n], "-p", 2)==0) prefix=argv[n]+2; else
 		if (strncmp(argv[n], "-b", 2)==0) blockpids=argv[n]+2; else
 		if (strncmp(argv[n], "-s", 2)==0) statusfile=argv[n]+2; else
@@ -65,6 +67,7 @@ int main(int argc, char *argv[])
 	if (mode==0) {
 		printf("Usage: %s \n\t--t42 stdin is a T42 stream\n\t--ts stdin is a DVB transport stream\n\t--stop stop executing after full service has been decoded\n\t-p<prefix> directory to send output to\n\t-b<list> list of PIDs to ignore\n\t-l<lockfile> lockfile\n\t-s<statusfile> writes the current status into this file on SIGUSR1\n", argv[0]);
 	}
+	print_line_prefix();
 	printf("prefix: %s, blockpids: %s, statusfile: %s, lockfile: %s\n", prefix, blockpids,statusfile,lockfile);
 	if (mode==2) { //Handle a T42 file
 		uint8_t line[42];
@@ -73,6 +76,8 @@ int main(int argc, char *argv[])
 			handle_t42_data(ap, line);
 		}
 		int cnt=finish_allpages(ap);
+		printf("\n");
+		print_line_prefix();
 		printf("%d datasets written\n", cnt);
 		return 0;
 	}
@@ -81,6 +86,7 @@ int main(int argc, char *argv[])
 		int8_t pids_enabled[PIDNUM];
 		for (int n=0; n<PIDNUM; n++) pids_enabled[n]=1;
 		if (blockpids!=NULL && strcmp(blockpids,"NULL")!=0) {
+			print_line_prefix();
 			printf("Blockpids: %s\n", blockpids);
 			//todo: parse blockpids
 			//Set pids_enabled to 0 for those pids
@@ -93,6 +99,7 @@ int main(int argc, char *argv[])
 					continue;
 				} else {
 					pids_enabled[pid]=0;
+					print_line_prefix();
 					printf("ignoring PID: %d\n", pid);
 				}
 				if (*endptr==0) p=endptr; else p=endptr+1;
@@ -113,11 +120,13 @@ int main(int argc, char *argv[])
 			if (cnt>100000) {
 				cnt=0;
 				if ((stop==1) && (are_pes_handlers_done()==1) ) {
+					print_line_prefix();
 					printf("finishing\n");
 					break;
 				}
 			}
 		}
+		print_line_prefix();
 		printf("%d packets processed\n", pktcnt);
 		finish_ts_packets();
 		if (f!=NULL) fclose(f);

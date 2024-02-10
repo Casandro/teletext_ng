@@ -224,7 +224,7 @@ int allpages_done(all_pages_t *p)
 	int expected=0;
 	int count=0;
 	allpages_done_fraction(p, &expected, &count);
-	if (count<10) { //Special handling for empty services
+	if ((count<10) && (tdiff>120)) { //Special handling for empty services
 		return 2;
 	}
 	if  ( (count==expected) && (tdiff>60*2) ) return 2; //If we think we have all pages, quit after a minute
@@ -269,6 +269,7 @@ int write_all_pages(all_pages_t *p)
 {
 	if (p==NULL) return 0;
 	int cnt=0;
+	print_line_prefix();
 	printf("    ");
 	for (int n=0; n<PAGENUM; n++) {
 		int pn=(n+0x100)&0x7ff;

@@ -1,8 +1,23 @@
 #include "status_output.h"
 #include <stdio.h>
+#include <string.h>
+#include <strings.h>
 #include "hamming.h"
 
 #define SO_LINES_PER_TS (3)
+
+char *status_line_prefix="";
+
+
+void set_line_prefix(const char *prefix)
+{
+	status_line_prefix=strdup(prefix);
+}
+
+void print_line_prefix()
+{
+	printf("%s", status_line_prefix);
+}
 
 int so_current_line=0;
 int so_service_count=0;

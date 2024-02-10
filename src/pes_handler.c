@@ -120,6 +120,7 @@ int process_ts_packet(const uint8_t *buf, const char *prefix, const char *status
 	if (pes_handler[pid]->continuity_counter!=continuity_counter) {
 		//Tell pes_handler[pid] that the current page is likely broken
 		if (pes_handler[pid]->continuity_counter>=0){
+			print_line_prefix();
 			printf("Discontinuity error on PID: %04x\n", pid);
 		}
 		pes_handler[pid]->write_pointer=-1;
@@ -217,6 +218,7 @@ void print_time(const time_t t)
 
 void print_single_line_status(const int te, const time_t start)
 {
+	print_line_prefix();
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	int last_change=1000000;
@@ -231,18 +233,21 @@ void print_single_line_status(const int te, const time_t start)
 		int tdiff=now.tv_sec-pes_handler[pid]->ap->last_change.tv_sec;
 		if (tdiff<last_change) last_change=tdiff;
 		allpages_done_fraction(pes_handler[pid]->ap, &expected, &count);
-		printf("0x%04x_%d/%d_%d ",pid,count,expected,tdiff);
+		printf(" 0x%04x",pid);
+		if (count<expected) {
+			printf("_%d/%d_%d ",expected-count,expected,tdiff);
+		}
 		sum_expected=sum_expected+expected;
 		sum_count=sum_count+count;
 	}
-	printf(" Total: %d/%d", sum_count, sum_expected);
+	printf(" Total: %d/%d", sum_expected-sum_count, sum_expected);
 	double t=((double)te)/1000;
 	int missing=sum_expected-sum_count;
 	double rest=((double)missing)/sum_expected; //fraction of pages still missing)
 	double speed=sum_count/t;
 	printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
 	printf(" lc: %ds ago", last_change);
-
+//	printf("\n");
 	printf("\e[0K\r");
 }
 
@@ -267,7 +272,7 @@ void print_full_status(const char *statusfile)
 	gettimeofday(&now, NULL);
 	long int tdiff=(now.tv_sec-last_update->tv_sec)*1000+(now.tv_usec-last_update->tv_usec)/1000;
 	if (tdiff<40) return;
-	if ( (statusfile!=NULL) && (tdiff<250)) return; //If external statusfile, only output status once per 10 seconds
+	if ( (statusfile!=NULL) && (tdiff<100)) return; //If external statusfile, only output status once per 10 seconds
 	last_update->tv_sec=now.tv_sec;
 	last_update->tv_usec=now.tv_usec;
 	
