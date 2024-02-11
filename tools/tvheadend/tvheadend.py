@@ -77,6 +77,10 @@ if "RSYNC_REMOVE" in os.environ:
     rsync_remove=1
 
 
+timeout=20
+if "TIMEOUT" in os.environ:
+    timeout=int(os.environ["TIMEOUT"])
+
 def clean_locks():
     with os.scandir(lockdir) as it:
         for f in it:
@@ -220,6 +224,7 @@ def pos_to_num(pos):
 
 def update_last_updates():
     global muxes
+    global muxes_to_remove
     log_start("Update last updates cnt="+str(len(muxes)))
     cnt=0
     for mux in muxes:
@@ -235,6 +240,11 @@ def update_last_updates():
         else:
             #services were received later than the mux
             last_update=oldest_service
+        index=muxes.index(mux)
+        if "last_update" in muxes[index]:
+            if muxes[index]["last_update"]<last_update:
+                muxes_to_remove.append(mux)
+                log("Mux "+mux["mux_name"]+ "updated => removing")
         muxes[muxes.index(mux)]["last_update"]=last_update
         cnt=cnt+1
     log_end(str(cnt)+" updates")
@@ -282,7 +292,24 @@ def log_end(text):
         text="done"
     print(indent+"└▶"+format_delta(d)+" "+text);
 
-    
+
+def dump_muxes(m):
+    log_start("summing up inputs")
+    si={}
+    for mux in m:
+        input=mux["switch_input"]
+        if input in si:
+            si[input]=si[input]+1;
+        else:
+            si[input]=1
+    lines=[]
+    for h in si:
+        lines.append("{:10} {:4} ".format(h,si[h]))
+    lines_sorted=sorted(lines)
+    for l in lines_sorted:
+        log(l)
+    log_end("")
+
 
 base_url="http://"+tvheadend_ip+":"+tvheadend_port+"/"
 base_url_auth="http://"+tvheadend_user+":"+tvheadend_pass+"@"+tvheadend_ip+":"+tvheadend_port+"/"
@@ -311,7 +338,7 @@ if req.status_code != 200:
     exit()
 
 services=json.loads(req.text)
-log_end(str(len(services))+" muxes")
+log_end(str(len(services))+" services")
 log_start("moving to hashmap")
 service_hash={}
 for service in services:
@@ -329,16 +356,29 @@ disappeared_services=0
 services_left=0
 for mux in muxes:
     mux_name=""
+    position=""
+    switch_input=""
     if "delsys" in mux:
         mux_name=mux_name+mux["delsys"]+"-"
+        position=mux["delsys"]
     if "frequency" in mux:
         mux_name=mux_name+str(mux["frequency"]);
+        if mux["delsys"].startswith("DVB-T"):
+            switch_input="T"
+        elif mux["frequency"]<11700000:
+            switch_input="Lo"
+        else:
+            switch_input="Hi"
     if "polarisation" in mux:
         mux_name=mux_name+mux["polarisation"]
+        switch_input=switch_input+"-"+mux["polarisation"]
     if "orbital" in mux:
         mux_name=mux_name+"-"+mux["orbital"]
         position=mux["orbital"]
+        switch_input=mux["orbital"]+"-"+switch_input
+    mux["position"]=position
     mux["mux_name"]=mux_name
+    mux["switch_input"]=switch_input
     if not "scan_last" in mux:
         continue
     mux_scan_last=mux["scan_last"]
@@ -394,6 +434,7 @@ save_translations()
 muxes=mux_filtered
 log_end(str(len(muxes))+" muxes left; "+str(services_left)+" out of "+str(total_services)+" services remaining; "+str(disappeared_services)+" services disappeared")
 
+dump_muxes(muxes)
 
 
 if statusfile is None:
@@ -401,9 +442,18 @@ if statusfile is None:
 else:
     sfile="-s"+statusfile
 
+muxes_to_remove=[]
 while len(muxes)>0:
 
     update_last_updates()
+    
+    log_start("remove used muxes")
+    for mux in muxes_to_remove:
+        if mux in muxes:
+            log(mux["mux_name"])
+            muxes.remove(mux)
+    muxes_to_remove=[]
+    log_end("")
 
     temp_mux_list=sorted(muxes, key=lambda d:d["last_update"])
     if sort_sat!=0:
@@ -411,7 +461,6 @@ while len(muxes)>0:
     else:
         muxes=temp_mux_list
 
-    muxes_to_remove=[]
 
     log_start("processing "+str(len(muxes))+" muxes")
     for mux in muxes:
@@ -442,13 +491,13 @@ while len(muxes)>0:
         for text_service in mux["text_services"]:
             pids.append(text_service[1])
         spids=",".join(map(str,pids))
-        url=base_url_auth+"stream/mux/"+mux["uuid"]+"?pids=0,1,15,16,17,18,"+spids
+        url=base_url_auth+"stream/mux/"+mux["uuid"]+"?pids=0,1,"+spids
         log_start("Handling multiplex streaming url: "+url)
         filecount=0
         if no_stream==0:
             log_start("Starting to stream from mux")
             line_indent=log_indent()+ " "
-            os.system("timeout 7200 wget -o /dev/null -O - --read-timeout=20 "+url+" | "+ts_teletext+" --ts --stop "+sfile+" '-P"+line_indent+"' -p"+out_tmp+"/"+date_prefix+"-")
+            os.system("timeout 7200 wget -o /dev/null -O - --read-timeout="+str(timeout)+" "+url+" | "+ts_teletext+" --ts --stop "+sfile+" '-P"+line_indent+"' -p"+out_tmp+"/"+date_prefix+"-")
             log_end("")
             #Sort files
             log_start("sort files")
@@ -488,10 +537,5 @@ while len(muxes)>0:
                 os.system(cmd)
                 log_end("")
             break
-    log_end("")
-    log_start("remove used muxes")
-    for mux in muxes_to_remove:
-        log(mux["mux_name"])
-        muxes.remove(mux)
     log_end("")
 
