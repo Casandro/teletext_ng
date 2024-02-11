@@ -39,6 +39,7 @@ The program is configured via environment variables:
   * `LIMIT` Number of muxes to process before stopping
   * `RSYNC_REMOVE` Target `user@host:path` for rsync
   * `RSYNC_TARGET` Delete local files after copying
+  * `TIMEOUT` Read timeout in seconds for wget
 
 
 ## translations.json
