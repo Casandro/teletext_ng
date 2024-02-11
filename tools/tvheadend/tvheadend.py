@@ -244,7 +244,7 @@ def update_last_updates():
         if "last_update" in muxes[index]:
             if muxes[index]["last_update"]<last_update:
                 muxes_to_remove.append(mux)
-                log("Mux "+mux["mux_name"]+ "updated => removing")
+                log("Mux "+mux["mux_name"]+ " updated => removing")
         muxes[muxes.index(mux)]["last_update"]=last_update
         cnt=cnt+1
     log_end(str(cnt)+" updates")
