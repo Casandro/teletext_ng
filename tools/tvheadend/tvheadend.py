@@ -470,6 +470,7 @@ while len(muxes)>0:
         if no_stream==0:
             if not get_lock(mux_uuid):
                 log_end("Could not get lock for "+mux["mux_name"]+" ("+mux_uuid+")")
+                muxes_to_remove.append(mux)
                 continue
         log_start("listing text services of mux "+mux["mux_name"])
         maxlen=0 
