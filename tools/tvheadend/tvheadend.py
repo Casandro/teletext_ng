@@ -91,7 +91,7 @@ def clean_locks():
                 age=time.time()-mtime
                 if age>7200:
                     os.remove(f.path)
-                    log("Removed stale lock for", f.name, age)
+                    log("Removed stale lock for "+ f.name+ str(age))
 
 def get_lock(muxname):
     clean_locks()
