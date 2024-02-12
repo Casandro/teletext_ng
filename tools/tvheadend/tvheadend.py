@@ -355,6 +355,9 @@ total_services=0
 disappeared_services=0
 services_left=0
 for mux in muxes:
+    if "orbital" in mux and (not orbital is None):
+        if not mux["orbital"] in orbital.split(","):
+            continue
     mux_name=""
     position=""
     switch_input=""
