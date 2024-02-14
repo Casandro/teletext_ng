@@ -475,30 +475,48 @@ while len(muxes)>0:
                 log_end("Could not get lock for "+mux["mux_name"]+" ("+mux_uuid+")")
                 muxes_to_remove.append(mux)
                 continue
+        log_start("Checking service locks")
+        service_names={}
+        for text_service in mux["text_services"]:
+            service_names[text_service[0]]=0
+        for s in service_names:
+            if get_lock(s):
+                service_names[s]=1
+                log(s+" OK")
+            else:
+                service_names[s]=0
+                log(s+" Can't get lock => Ignoring")
+        log_end("")
         log_start("listing text services of mux "+mux["mux_name"])
         maxlen=0 
         for text_service in mux["text_services"]:
             l=len(text_service[0])
             if l>maxlen:
                 maxlen=l;
+        not_in_use_cnt=0
         for text_service in mux["text_services"]:
             name=text_service[0]
             l=len(name)
-            spaces=maxlen+2-l
+            spaces=maxlen+1-l
             pid=text_service[1]
-            log("  "+name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(get_last_used(name)))
+            if service_names[name]==1:
+                log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(get_last_used(name)))
+                not_in_use_cnt=not_in_use_cnt+1
+            else:
+                log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(get_last_used(name))+ "in use elsewhere")
         log_end("")
         out_tmp=tmpdir+"/"+mux_uuid
         os.makedirs(out_tmp, exist_ok=True)
         date_prefix=datetime.datetime.now().utcnow().isoformat(timespec="seconds")+"+00:00"
         pids=[]
         for text_service in mux["text_services"]:
+            name=text_service[0]
             pids.append(text_service[1])
         spids=",".join(map(str,pids))
         url=base_url_auth+"stream/mux/"+mux["uuid"]+"?pids=0,1,"+spids
         log_start("Handling multiplex streaming url: "+url)
         filecount=0
-        if no_stream==0:
+        if no_stream==0 and (len(pids)>0) and (not_in_use_cnt>0):
             log_start("Starting to stream from mux")
             line_indent=log_indent()+ " "
             os.system("timeout 7200 wget -o /dev/null -O - --read-timeout="+str(timeout)+" "+url+" | "+ts_teletext+" --ts --stop "+sfile+" '-P"+line_indent+"' -p"+out_tmp+"/"+date_prefix+"-")
@@ -519,7 +537,10 @@ while len(muxes)>0:
                         set_last_used(name)
                         filecount=filecount+1
             log_end(str(filecount)+" files moved")
-            remove_lock(mux["uuid"])
+        remove_lock(mux["uuid"])
+        for s in service_names:
+            if service_names[s]==1:
+                remove_lock(s)
         if filecount>0:
             set_last_used(mux["uuid"])
             if not limit is None:
