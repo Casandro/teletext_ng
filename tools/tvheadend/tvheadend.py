@@ -503,7 +503,7 @@ while len(muxes)>0:
                 log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(get_last_used(name)))
                 not_in_use_cnt=not_in_use_cnt+1
             else:
-                log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(get_last_used(name))+ "in use elsewhere")
+                log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(get_last_used(name))+ " in use elsewhere")
         log_end("")
         out_tmp=tmpdir+"/"+mux_uuid
         os.makedirs(out_tmp, exist_ok=True)
