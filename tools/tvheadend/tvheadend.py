@@ -557,8 +557,8 @@ while len(muxes)>0:
                 cmd="rsync -rv "
                 if rsync_remove!=0:
                     cmd=cmd+" --remove-source-files "
-                cmd=cmd+outdir+"/* "+rsync_target
-                print(cmd)
+                cmd=cmd+outdir+"/* "+rsync_target+' | sed "s/^/'+log_indent()+' /"'
+                log(cmd)
                 os.system(cmd)
                 log_end("")
             break
