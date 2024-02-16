@@ -359,7 +359,6 @@
     "KABELEINSDOKU": "de.Kabel1_Doku",
     "KABELIOORF1_13E": "BLOCK",
     "KABELIORTLCH_13E": "BLOCK",
-
     "KANAL11-TEXT": "BLOCK",
     "KANAL11SYNTOLKNING": "BLOCK",
     "KANAL11_DVB-S2-11229000H-0.8W": "BLOCK",
@@ -921,13 +920,10 @@
     "TF1SERIESFILMS_DVB-S2-11681000H-13E": "BLOCK",
     "TFX": "BLOCK",
     "TG4": "BLOCK",
-<<<<<<< HEAD
     "THEBOX_28.2E": "BLOCK",
     "TIJI_DVB-S2-12380000V-52E": "BLOCK",
     "TIPIK": "be.La_Deux",
-=======
     "TIPIK_DVB-S2-11411000H-13E": "BLOCK",
->>>>>>> 102fd96a1ab39effa6d6de41a8561feec30ef2e6
     "TLC": "de.TLC",
     "TLC+1": "BLOCK",
     "TLCAUSTRIA": "de.TLC",
