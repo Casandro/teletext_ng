@@ -125,7 +125,7 @@ int process_ts_packet(const uint8_t *buf, const char *prefix, const char *status
 			print_line_prefix();
 			printf("Discontinuity error on PID: %04x %d\n", pid, number_of_discontinuities);
 			number_of_discontinuities=number_of_discontinuities+1;
-			if (number_of_discontinuities>100) exit(1);
+			if (number_of_discontinuities>500) exit(1);
 		}
 		pes_handler[pid]->write_pointer=-1;
 		pes_handler[pid]->continuity_counter=(continuity_counter+1)&0x0f;
