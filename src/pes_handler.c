@@ -97,6 +97,8 @@ int ts_get_pid(const uint8_t *buf)
 	return pid;
 }
 
+int number_of_discontinuities=0; 
+
 int process_ts_packet(const uint8_t *buf, const char *prefix, const char *statusfile)
 {
 	int n;
@@ -121,7 +123,9 @@ int process_ts_packet(const uint8_t *buf, const char *prefix, const char *status
 		//Tell pes_handler[pid] that the current page is likely broken
 		if (pes_handler[pid]->continuity_counter>=0){
 			print_line_prefix();
-			printf("Discontinuity error on PID: %04x\n", pid);
+			printf("Discontinuity error on PID: %04x %d\n", pid, number_of_discontinuities);
+			number_of_discontinuities=number_of_discontinuities+1;
+			if (number_of_discontinuities>500) exit(1);
 		}
 		pes_handler[pid]->write_pointer=-1;
 		pes_handler[pid]->continuity_counter=(continuity_counter+1)&0x0f;
