@@ -519,7 +519,7 @@ while len(muxes)>0:
         if no_stream==0 and (len(pids)>0) and (not_in_use_cnt>0):
             log_start("Starting to stream from mux")
             line_indent=log_indent()+ " "
-            os.system("timeout 7200 wget -o /dev/null -O - --read-timeout="+str(timeout)+" "+url+" | "+ts_teletext+" --ts --stop "+sfile+" '-P"+line_indent+"' -p"+out_tmp+"/"+date_prefix+"-")
+            os.system("timeout 7200 wget -o /dev/null -O - --read-timeout="+str(timeout)+" --tries=1 "+url+" | "+ts_teletext+" --ts --stop "+sfile+" '-P"+line_indent+"' -p"+out_tmp+"/"+date_prefix+"-")
             log_end("")
             #Sort files
             log_start("sort files")
