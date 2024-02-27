@@ -309,6 +309,23 @@ def dump_muxes(m):
     for l in lines_sorted:
         log(l)
     log_end("")
+    log_start("summing up orbitals")
+    si={}
+    for mux in m:
+        if not "orbital" in mux:
+            continue
+        input=mux["orbital"]
+        if input in si:
+            si[input]=si[input]+1;
+        else:
+            si[input]=1
+    lines=[]
+    for h in si:
+        lines.append("{:10} {:4} ".format(h,si[h]))
+    lines_sorted=sorted(lines)
+    for l in lines_sorted:
+        log(l)
+    log_end("")
 
 
 base_url="http://"+tvheadend_ip+":"+tvheadend_port+"/"
