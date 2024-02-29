@@ -8,6 +8,7 @@ import json
 import datetime
 import time
 import random
+from random import randint
 import shutil
 
 
@@ -55,7 +56,7 @@ if not os.path.exists(ts_teletext):
 if "TS_TELETEXT" in os.environ:
     ts_teletext=os.environ["TS_TELETEXT"]
 
-statusfile=None
+statusfile="/tmp/"+str(randint(100,999))
 if "STATUSFILE" in os.environ:
     statusfile=os.environ["STATUSFILE"]
 
@@ -311,17 +312,20 @@ def dump_muxes(m):
     log_end("")
     log_start("summing up orbitals")
     si={}
+    va={}
     for mux in m:
         if not "orbital" in mux:
             continue
         input=mux["orbital"]
         if input in si:
             si[input]=si[input]+1;
+            va[input]=va[input]+mux["value"]
         else:
             si[input]=1
+            va[input]=mux["value"]
     lines=[]
     for h in si:
-        lines.append("{:10} {:4} ".format(h,si[h]))
+        lines.append("{:10} {:4} {:7.5}".format(h,si[h],round(va[h]*10)/10))
     lines_sorted=sorted(lines)
     for l in lines_sorted:
         log(l)
@@ -454,8 +458,42 @@ save_translations()
 muxes=mux_filtered
 log_end(str(len(muxes))+" muxes left; "+str(services_left)+" out of "+str(total_services)+" services remaining; "+str(disappeared_services)+" services disappeared")
 
-dump_muxes(muxes)
+log_start("Evaluating Muxes")
+log_start("Finding transponders for each mux")
+service_muxes={}
+for mux in muxes:
+    mux["value"]=0
+    for text_service in mux["text_services"]:
+        service_name=text_service[0]
+        if service_name in service_muxes:
+            if not (mux in service_muxes[service_name]): 
+                service_muxes[service_name].append(mux)
+        else:
+            service_muxes[service_name]=[]
+            service_muxes[service_name].append(mux)
+log_end("")
+log_start("Evaluate Muxes")
+for service in service_muxes:
+    cnt=len(service_muxes[service])
+    if cnt==0:
+        continue
+    v=1/cnt;
+    for m in service_muxes[service]:
+        m["value"]=m["value"]+v;
+log_end("")
+log_start("Printing muxes and their evaluations")
+f=open("/tmp/mux_values.txt","w")
+for m in muxes:
+    n=""
+    for s in m["text_services"]:
+        n=n+" "+s[0]
+    log("{:0.5}".format(m["value"])+"\t"+m["mux_name"]+"\t"+n)
+    f.write("{:0.5}".format(m["value"])+"\t"+m["mux_name"]+"\t"+n+"\n")
+f.close();
+log_end("")
+log_end("")
 
+dump_muxes(muxes)
 
 if statusfile is None:
     sfile=""
@@ -463,14 +501,22 @@ else:
     sfile="-s"+statusfile
 
 muxes_to_remove=[]
+log_start("Randomly removing less valuable muxes")
+cnt=0
+for m in muxes:
+    if m["value"]<random.random()*0.25:
+        muxes_to_remove.append(m)
+        cnt=cnt+1
+log_end(str(cnt)+" muxes marked for deletion")
+
 while len(muxes)>0:
 
     update_last_updates()
     
-    log_start("remove used muxes")
+    log_start("muxes from work list")
     for mux in muxes_to_remove:
         if mux in muxes:
-            log(mux["mux_name"])
+            log(mux["mux_name"]+" {:0.5}".format(mux["value"]))
             muxes.remove(mux)
     muxes_to_remove=[]
     log_end("")
@@ -486,7 +532,7 @@ while len(muxes)>0:
     for mux in muxes:
         time.sleep(1)
         mux_uuid=mux["uuid"]
-        log_start(mux["mux_name"]+" last update: "+format_last_used(mux["last_update"]))
+        log_start(mux["mux_name"]+" last update: "+format_last_used(mux["last_update"])+" value: "+"{:0.5}".format(mux["value"]))
         if no_stream==0:
             if not get_lock(mux_uuid):
                 log_end("Could not get lock for "+mux["mux_name"]+" ("+mux_uuid+")")
