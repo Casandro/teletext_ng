@@ -513,7 +513,7 @@ while len(muxes)>0:
 
     update_last_updates()
     
-    log_start("muxes from work list")
+    log_start("removing muxes from work list")
     for mux in muxes_to_remove:
         if mux in muxes:
             log(mux["mux_name"]+" {:0.5}".format(mux["value"]))
