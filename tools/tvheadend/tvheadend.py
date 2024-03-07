@@ -324,8 +324,13 @@ def dump_muxes(m):
             si[input]=1
             va[input]=mux["value"]
     lines=[]
+    cnt_sum=0
+    val_sum=0
     for h in si:
-        lines.append("{:10} {:4} {:7.5}".format(h,si[h],round(va[h]*10)/10))
+        cnt_sum=cnt_sum+si[h]
+        val_sum=val_sum+va[h]
+    for h in si:
+        lines.append("{:10} {:4} {:7.5}".format(h,si[h],round(va[h]*10)/10)+" "+str(round(si[h]/cnt_sum*1000)/10)+"% "+str(round(va[h]/val_sum*1000)/10)+"%")
     lines_sorted=sorted(lines)
     for l in lines_sorted:
         log(l)
