@@ -122,8 +122,8 @@ int process_ts_packet(const uint8_t *buf, const char *prefix, const char *status
 	if (pes_handler[pid]->continuity_counter!=continuity_counter) {
 		//Tell pes_handler[pid] that the current page is likely broken
 		if (pes_handler[pid]->continuity_counter>=0){
-			print_line_prefix();
-			printf("Discontinuity error on PID: %04x %d\n", pid, number_of_discontinuities);
+			/*print_line_prefix();
+			printf("Discontinuity error on PID: %04x %d\n", pid, number_of_discontinuities);*/
 			number_of_discontinuities=number_of_discontinuities+1;
 			if (number_of_discontinuities>500) exit(1);
 		}
@@ -251,6 +251,7 @@ void print_single_line_status(const int te, const time_t start)
 	double speed=sum_count/t;
 	printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
 	printf(" lc: %ds ago", last_change);
+	if (number_of_discontinuities>0) printf(" E:%d!", number_of_discontinuities);
 //	printf("\n");
 	printf("\e[0K\r");
 }
