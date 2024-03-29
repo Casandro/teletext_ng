@@ -33,6 +33,10 @@ orbital=None
 if "ORBITAL" in os.environ:
     orbital=os.environ["ORBITAL"]
 
+no_orbital=None
+if "NO_ORBITAL" in os.environ:
+    no_orbital=os.environ["NO_ORBITAL"]
+
 no_stream=0
 if "NO_STREAM" in os.environ:
     no_stream=1
@@ -94,6 +98,11 @@ def clean_locks():
                     os.remove(f.path)
                     log("Removed stale lock for "+ f.name+ str(age))
 
+def probe_lock(muxname):
+    clean_locks()
+    lockfile=lockdir+"/"+muxname+".lock"
+    return os.path.exists(lockfile)
+
 def get_lock(muxname):
     clean_locks()
     try:
@@ -144,7 +153,10 @@ def use_mux(mux):
     if mux['enabled']==0:
         return False
     if orbital is not None:
-        if 'orbital' not in mux:
+        if 'delsys' in mux:
+            if mux["delsys"]=="DVB-T2":
+                return False
+        if 'orbital' in mux:
             if mux["orbital"]!=orbital:
                 return False
     return True
@@ -231,10 +243,12 @@ def update_last_updates():
     for mux in muxes:
         oldest_service=1e100
         for text in mux["text_services"]:
+            if probe_lock(text[0]):
+                continue
             sdate=get_last_used(text[0])
             if (sdate<oldest_service):
                 oldest_service=sdate
-        muxdate=get_last_used(mux["uuid"])
+        muxdate=oldest_service #Disable mux date for a while get_last_used(mux["uuid"])
         if (muxdate>oldest_service):
             #Mux was recieved after oldest service
             last_update=muxdate
@@ -384,6 +398,12 @@ for mux in muxes:
     if "orbital" in mux and (not orbital is None):
         if not mux["orbital"] in orbital.split(","):
             continue
+    if "orbital" in mux and (not no_orbital is None):
+        if mux["orbital"] in no_orbital.split(","):
+            continue
+    if (not orbital is None):
+        if mux["delsys"]=="DVB-T2":
+            continue
     mux_name=""
     position=""
     switch_input=""
@@ -429,7 +449,7 @@ for mux in muxes:
                 disappeared_services=disappeared_services+1
                 continue
             last_seen_age=int(time.time())-last_seen
-            if last_seen_age>(24*5)*3600:
+            if last_seen_age>(24*2)*3600:
                 disappeared_services=disappeared_services+1
                 continue 
             tcnt=0;
@@ -526,7 +546,7 @@ while len(muxes)>0:
     muxes_to_remove=[]
     log_end("")
 
-    temp_mux_list=sorted(muxes, key=lambda d:d["last_update"])
+    temp_mux_list=sorted(muxes, key=lambda d:d["last_update"]-d["value"]*120)
     if sort_sat!=0:
         muxes=sorted(temp_mux_list, key=lambda d:pos_to_num(d[2]))
     else:
