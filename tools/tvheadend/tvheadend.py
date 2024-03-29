@@ -241,7 +241,7 @@ def update_last_updates():
     log_start("Update last updates cnt="+str(len(muxes)))
     cnt=0
     for mux in muxes:
-        oldest_service=1e100
+        oldest_service=time.time()+3600
         for text in mux["text_services"]:
             if probe_lock(text[0]):
                 continue
