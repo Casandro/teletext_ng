@@ -402,7 +402,7 @@ for mux in muxes:
         if mux["orbital"] in no_orbital.split(","):
             continue
     if (not orbital is None):
-        if mux["delsys"]=="DVB-T2":
+        if mux["delsys"]=="DVB-T2" and (not "T" in orbital.split(",")):
             continue
     mux_name=""
     position=""
