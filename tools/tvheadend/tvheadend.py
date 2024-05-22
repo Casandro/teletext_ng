@@ -161,6 +161,26 @@ def use_mux(mux):
                 return False
     return True
 
+def sum_postion_use_time(pos, t):
+    try:
+        with open('position_usage.json') as file:
+            use_time=json.load(file)
+    except:
+        use_time={}
+    if pos in use_time:
+        use_time[pos][0]=use_time[pos][0]+t
+    else:
+        use_time[pos]=[t,""]
+    sum=0
+    for p in use_time:
+        sum=sum+use_time[p][0]
+    for p in use_time:
+        use_time[p][1]="%.2f%%" %((use_time[p][0]*100/sum))
+    with open('position_usage.json','w') as t_file:
+        json.dump(use_time,fp=t_file)
+
+
+
 translations_changes=0
 translations=None
 
@@ -605,10 +625,13 @@ while len(muxes)>0:
         log_start("Handling multiplex streaming url: "+url)
         filecount=0
         if no_stream==0 and (len(pids)>0) and (not_in_use_cnt>0):
+            start_time=time.time()
             log_start("Starting to stream from mux")
             line_indent=log_indent()+ " "
             os.system("timeout 7200 wget -o /dev/null -O - --read-timeout="+str(timeout)+" --tries=1 "+url+" | "+ts_teletext+" --ts --stop "+sfile+" '-P"+line_indent+"' -p"+out_tmp+"/"+date_prefix+"-")
             log_end("")
+            if "orbital" in mux:
+                sum_postion_use_time(mux["orbital"] , time.time()-start_time)
             #Sort files
             log_start("sort files")
             files=os.listdir(out_tmp)
