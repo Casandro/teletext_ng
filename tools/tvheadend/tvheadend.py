@@ -92,11 +92,15 @@ def clean_locks():
             if f.is_file():
                 if not f.path.endswith(".lock"):
                     continue
-                mtime=f.stat().st_mtime
-                age=time.time()-mtime
-                if age>7200:
-                    os.remove(f.path)
-                    log("Removed stale lock for "+ f.name+ str(age))
+                try:
+                    mtime=f.stat().st_mtime
+                    age=time.time()-mtime
+                    if age>7200:
+                        os.remove(f.path)
+                        log("Removed stale lock for "+ f.name+ str(age))
+                except:
+                    log("Ignoring missing file")
+
 
 def probe_lock(muxname):
     clean_locks()
@@ -549,7 +553,7 @@ muxes_to_remove=[]
 log_start("Randomly removing less valuable muxes")
 cnt=0
 for m in muxes:
-    if m["value"]<random.random()*0.25:
+    if m["value"]<random.random()*0:
         muxes_to_remove.append(m)
         cnt=cnt+1
 log_end(str(cnt)+" muxes marked for deletion")
