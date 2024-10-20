@@ -10,6 +10,7 @@ import time
 import random
 from random import randint
 import shutil
+import sys
 
 
 tvheadend_ip="127.0.0.1"
@@ -543,6 +544,9 @@ log_end("")
 log_end("")
 
 dump_muxes(muxes)
+
+if no_stream==1:
+    sys.exit(0)
 
 if statusfile is None:
     sfile=""
