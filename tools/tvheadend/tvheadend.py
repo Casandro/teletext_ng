@@ -55,6 +55,10 @@ if "LOCKDIR" in os.environ:
     lockdir=os.environ["LOCKDIR"]
 os.makedirs(lockdir, exist_ok=True)
 
+least_service_age=1800
+if "LEAST_SERVICE_AGE" in os.environ:
+    least_service_age=int(os.environ["LEAST_SERVICE_AGE"])
+
 ts_teletext="../../src/ts_teletext"
 if not os.path.exists(ts_teletext):
     ts_teletext="ts_teletext"
@@ -545,8 +549,8 @@ log_end("")
 
 dump_muxes(muxes)
 
-if no_stream==1:
-    sys.exit(0)
+#if no_stream==1:
+#    sys.exit(0)
 
 if statusfile is None:
     sfile=""
@@ -583,14 +587,14 @@ while len(muxes)>0:
 
     log_start("processing "+str(len(muxes))+" muxes")
     for mux in muxes:
-        time.sleep(1)
+        time.sleep(0.5)
         mux_uuid=mux["uuid"]
         log_start(mux["mux_name"]+" last update: "+format_last_used(mux["last_update"])+" value: "+"{:0.5}".format(mux["value"]))
-        if no_stream==0:
-            if not get_lock(mux_uuid):
-                log_end("Could not get lock for "+mux["mux_name"]+" ("+mux_uuid+")")
-                muxes_to_remove.append(mux)
-                continue
+#        if no_stream==0:
+#            if not get_lock(mux_uuid):
+#                log_end("Could not get lock for "+mux["mux_name"]+" ("+mux_uuid+")")
+#                muxes_to_remove.append(mux)
+#                continue
         log_start("Checking service locks")
         service_names={}
         for text_service in mux["text_services"]:
@@ -610,17 +614,26 @@ while len(muxes)>0:
             if l>maxlen:
                 maxlen=l;
         not_in_use_cnt=0
+        oldest_service=time.time();
         for text_service in mux["text_services"]:
             name=text_service[0]
             l=len(name)
             spaces=maxlen+1-l
             pid=text_service[1]
+            service_last_used=get_last_used(name)
             if service_names[name]==1:
-                log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(get_last_used(name)))
+                log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(service_last_used))
                 not_in_use_cnt=not_in_use_cnt+1
+                if (service_last_used<oldest_service):
+                    oldest_service=service_last_used
             else:
-                log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(get_last_used(name))+ " in use elsewhere")
-        log_end("")
+                log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(service_last_used)+ " in use elsewhere")
+        log_end("Oldest: "+format_last_used(oldest_service))
+        if not_in_use_cnt<1:
+            log("no service is not in use elsewhere, skipping")
+        if time.time()-oldest_service<least_service_age:
+            log("no old service in list, skipping")
+            not_in_use_cnt=0
         out_tmp=tmpdir+"/"+mux_uuid
         os.makedirs(out_tmp, exist_ok=True)
         date_prefix=datetime.datetime.now().utcnow().isoformat(timespec="seconds")+"+00:00"
