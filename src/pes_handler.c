@@ -237,19 +237,19 @@ void print_single_line_status(const int te, const time_t start)
 		int tdiff=now.tv_sec-pes_handler[pid]->ap->last_change.tv_sec;
 		if (tdiff<last_change) last_change=tdiff;
 		allpages_done_fraction(pes_handler[pid]->ap, &expected, &count);
-		printf(" 0x%04x",pid);
+		printf("|%04x",pid);
 		if (count<expected) {
-			printf("_%d/%d_%d ",expected-count,expected,tdiff);
+			printf("_%d/%d_%d",expected-count,expected,tdiff);
 		}
 		sum_expected=sum_expected+expected;
 		sum_count=sum_count+count;
 	}
 	printf(" Total: %d/%d", sum_expected-sum_count, sum_expected);
 	double t=((double)te)/1000;
-	int missing=sum_expected-sum_count;
-	double rest=((double)missing)/sum_expected; //fraction of pages still missing)
+//	int missing=sum_expected-sum_count;
+//	double rest=((double)missing)/sum_expected; //fraction of pages still missing)
 	double speed=sum_count/t;
-	printf(" %d (%2.1f%%) missing, %.2lfpps", missing, rest*100, speed);
+	printf(" %.2lfpps", speed);
 	printf(" lc: %ds ago", last_change);
 	if (number_of_discontinuities>0) printf(" E:%d!", number_of_discontinuities);
 //	printf("\n");
