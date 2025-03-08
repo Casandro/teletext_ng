@@ -478,7 +478,7 @@ for mux in muxes:
                 disappeared_services=disappeared_services+1
                 continue
             last_seen_age=int(time.time())-last_seen
-            if last_seen_age>(24*2)*3600:
+            if last_seen_age>(24*7)*3600:
                 disappeared_services=disappeared_services+1
                 continue 
             tcnt=0;
