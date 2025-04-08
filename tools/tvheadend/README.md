@@ -40,6 +40,7 @@ The program is configured via environment variables:
   * `RSYNC_REMOVE` Target `user@host:path` for rsync
   * `RSYNC_TARGET` Delete local files after copying
   * `TIMEOUT` Read timeout in seconds for wget
+  * `LEAST_SERVICE_AGE` Skip handling transponders where the oldest snapshot is younger than this in seconds default 1800 seconds
 
 
 ## translations.json
