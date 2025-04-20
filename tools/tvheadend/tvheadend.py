@@ -196,11 +196,8 @@ translations=None
 def load_translations():
     global translations
     global translations_changes
-    try:
-       with open('translations.json') as t_file:
-           translations=json.load(t_file)
-    except:
-        translations=json.loads('{"blurb": "blurb"}')
+    with open('translations.json') as t_file:
+       translations=json.load(t_file)
     translations_changes=0
     return translations
 
