@@ -34,7 +34,7 @@ locking_service=""
 
 if os.path.isfile("locking_service"):
     f=open("locking_service", "r")
-    locking_service=f.read()
+    locking_service=trim(f.read())
     f.close()
 
 if "LOCKING_SERVICE" in os.environ:
