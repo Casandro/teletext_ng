@@ -30,6 +30,16 @@ if "TVHEADEND_USER" in os.environ:
 if "TVHEADEND_PASS" in os.environ:
     tvheadend_pass=os.environ["TVHEADEND_PASS"]
 
+locking_service=""
+
+if os.path.isfile("locking_service"):
+    f=open("locking_service", "r")
+    locking_service=f.read()
+    f.close()
+
+if "LOCKING_SERVICE" in os.environ:
+    locking_service=os.environ["LOCKING_SERVICE"]
+
 orbital=None
 if "ORBITAL" in os.environ:
     orbital=os.environ["ORBITAL"]
@@ -131,12 +141,39 @@ def get_lock(muxname):
         return False
     return False
 
+def get_service_lock(service):
+    if len(locking_service)>8:
+        try:
+            req=requests.post(locking_service+"/set_lock?service=%s" % service)
+            req.encoding="UTF-8"
+            if req.status_code==200:
+                return True
+            return False
+        except:
+            log("get_service_lock Request failed %s for %s" % (req.status_code, service))
+            return get_lock(service)
+        return False
+    else:
+        return get_lock(service)
+
 def remove_lock(muxname):
     try:
         os.remove(lockdir+"/"+muxname+".lock")
     except:
         return
 
+def remove_service_lock(service):
+    if len(locking_service)>8:
+        try:
+            req=requests.post(locking_service+"/release_lock?service=%s" % service)
+            req.encoding="UTF-8"
+            return True
+        except:
+            log("remove_service_lock Request failed for %s" % service)
+            return remove_lock(service)
+        return False
+    else:
+        return release_lock(service)
 
 def set_last_used(muxname):
     t=int(time.time())
@@ -144,6 +181,21 @@ def set_last_used(muxname):
     f=open(lockfile, "w")
     f.write(str(t))
     f.close()
+
+def set_service_last_used(service):
+    if len(locking_service)<8:
+        return set_last_used(service)
+    try:
+        req=requests.post(locking_service+"/set_last_used?service=%s" % service)
+        req.encoding="UTF-8"
+        if req.status_code==200:
+            return True
+        log("set_service_last_used %s for %s" % (req.status_code, service))
+        return False
+    except:
+        log("set_service_last_used: Request failed %s for %s" % (req.status_code, service))
+        return set_last_used(service)
+    return False
 
 def get_last_used(muxname):
     lockfile=lockdir+"/"+muxname+".last_used"
@@ -157,6 +209,23 @@ def get_last_used(muxname):
     except:
         os.remove(lockfile)
         return 1e10
+
+def get_service_last_used(service):
+    if len(locking_service)<8:
+        return get_last_used(service)
+    try:
+        req=requests.get(locking_service+"/get_last_used?service=%s" % service)
+        req.encoding="UTF-8"
+        if req.text=="":
+            return 1e10
+        if req.status_code==200:
+            return float(req.text)
+        log("get_service_last_used %s for %s" % (req.status_code, service) )
+        return 1e10
+    except:
+        log("get_service_last_used Request failed %s for %s" % (req.status_code, service))
+        return get_last_used(service)
+    return False
 
 def use_mux(mux):
     if mux['enabled']==0:
@@ -271,7 +340,7 @@ def update_last_updates():
         for text in mux["text_services"]:
             if probe_lock(text[0]):
                 continue
-            sdate=get_last_used(text[0])
+            sdate=get_service_last_used(text[0])
             if (sdate<oldest_service):
                 oldest_service=sdate
         muxdate=oldest_service #Disable mux date for a while get_last_used(mux["uuid"])
@@ -597,7 +666,7 @@ while len(muxes)>0:
         for text_service in mux["text_services"]:
             service_names[text_service[0]]=0
         for s in service_names:
-            if get_lock(s):
+            if get_service_lock(s):
                 service_names[s]=1
                 log(s+" OK")
             else:
@@ -617,7 +686,7 @@ while len(muxes)>0:
             l=len(name)
             spaces=maxlen+1-l
             pid=text_service[1]
-            service_last_used=get_last_used(name)
+            service_last_used=get_service_last_used(name)
             if service_names[name]==1:
                 log(name+("…"*spaces)+("{:4}".format(pid))+" 0x"+("{:04x}".format(pid))+ " last update: "+format_last_used(service_last_used))
                 not_in_use_cnt=not_in_use_cnt+1
@@ -663,13 +732,13 @@ while len(muxes)>0:
                         log(f+" => "+outdir+"/"+name+"/"+name+"/"+f)
                         shutil.move(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
                         files.remove(f)
-                        set_last_used(name)
+                        set_service_last_used(name)
                         filecount=filecount+1
             log_end(str(filecount)+" files moved")
         remove_lock(mux["uuid"])
         for s in service_names:
             if service_names[s]==1:
-                remove_lock(s)
+                remove_service_lock(s)
         if filecount>0:
             set_last_used(mux["uuid"])
             if not limit is None:
