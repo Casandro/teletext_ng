@@ -63,15 +63,17 @@ def format_delta(delta):
 @app.get("/")
 async def read_root():
     data="<html><head><title>Status</title></head><body>"
-    data=data+"<table><tr><th>Name</th><th>Alter</th></tr>"
-    for x in service_lock:
-        data=data+"<tr><td>%s</td><td>%s</td></tr>"%(x, service_lock[x])
-    data=data+"</table>"
-    data=data+"</body></html>"
-    last_used_sorted=dict(sorted(service_last_used.items(), key=lambda item: item[1]))
-    data=data+"<table><tr><th>Name</th><th>Alter</th></tr>"
+#    data=data+"<table><tr><th>Name</th><th>Alter</th></tr>"
+#    for x in service_lock:
+#        data=data+"<tr><td>%s</td><td>%s</td></tr>"%(x, service_lock[x])
+#    data=data+"</table>"
+    last_used_sorted=dict(sorted(service_last_used.items(), key=lambda item: item[1], reverse=False))
+    data=data+"<table><tr><th>service</th><th>age</th></tr>"
     for x in last_used_sorted:
-        data=data+"<tr><td>%s</td><td>%s</td></tr>"%(x, str(format_delta(time.time()-last_used_sorted[x])))
+        age_str=str(format_delta(time.time()-last_used_sorted[x]))
+        if is_service_locked(x):
+            age_str=age_str+ " in use"
+        data=data+"<tr><td>%s</td><td>%s</td></tr>"%(x, age_str)
     data=data+"</table>"
     data=data+"</body></html>"
     return Response(content=data, media_type="text/html;charset=utf-8")
@@ -80,6 +82,9 @@ async def read_root():
 async def set_last_used(service: str):
     service_last_used[service]=time.time()
     store_last_used()
+    if service in service_lock:
+        service_lock.pop(service)
+        store_locks()
     return Response(content="OK", media_type="text/plain;charset=utf-8")
 
 @app.get("/get_last_used")
