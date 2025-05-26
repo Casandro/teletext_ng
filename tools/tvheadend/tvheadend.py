@@ -210,16 +210,31 @@ def get_last_used(muxname):
         os.remove(lockfile)
         return 1e10
 
+last_used_cache={}
+
 def get_service_last_used(service):
+    if "cache_"+service in last_used_cache:
+        if last_used_cache["cache_"+service]>time.time():
+            if service in last_used_cache:
+                log("get_service_last_used: cache for %s" % service)
+                return last_used_cache[service]
+            else:
+                return 1e10
     if len(locking_service)<8:
-        return get_last_used(service)
+        last_used=get_last_used(service)
+        last_used_cache[service]=last_used
+        last_used_cache["cache_"+service]=time.time()+30
+        return last_used
     try:
         req=requests.get(locking_service+"/get_last_used?service=%s" % service)
         req.encoding="UTF-8"
+        last_used_cache["cache_"+service]=time.time()+10
         if req.text=="":
             return 1e10
         if req.status_code==200:
-            return float(req.text)
+            last_used=float(req.text)
+            last_used_cache[service]=last_used
+            return last_used
         log("get_service_last_used %s for %s" % (req.status_code, service) )
         return 1e10
     except:
