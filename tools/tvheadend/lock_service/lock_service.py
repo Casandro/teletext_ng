@@ -108,8 +108,9 @@ async def set_last_used(service: str):
 
 @app.post("/release_lock")
 async def set_last_used(service: str):
-    service_lock.pop(service)
-    store_locks()
+    if service in service_lock:
+        service_lock.pop(service)
+        store_locks()
     return Response(content="OK", media_type="text/plain;charset=utf-8")
 
 @app.on_event("startup")
