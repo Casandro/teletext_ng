@@ -12,6 +12,7 @@ from random import randint
 import shutil
 import sys
 import base64
+import subprocess
 
 
 tvheadend_ip="127.0.0.1"
