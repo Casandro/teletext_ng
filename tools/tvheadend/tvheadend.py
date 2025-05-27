@@ -251,6 +251,25 @@ def get_service_last_used(service):
         return get_last_used(service)
     return False
 
+def set_service_header(service, service_header):
+    try:
+        service=encode_service_name(service)
+        req=requests.get(locking_service+"/set_header?service=%s&header=%s" % (service,service_header))
+        req.encoding="UTF-8"
+        last_used_cache["cache_"+service]=time.time()+10
+        if req.text=="":
+            return 1e10
+        if req.status_code==200:
+            last_used=float(req.text)
+            last_used_cache[service]=last_used
+            return last_used
+        log("set_service_header%s for %s" % (req.status_code, service) )
+        return 1e10
+    except:
+        log("set_service_header Request failed %s for %s" % (req.status_code, service))
+        return get_last_used(service)
+    return False
+
 def use_mux(mux):
     if mux['enabled']==0:
         return False
@@ -398,6 +417,11 @@ def format_delta(delta):
     if a>0.001:
         return "{:0.5}".format(delta*1000)+"ms"
     return "{:0.5}".format(delta*1000000)+"µs"
+
+def get_service_name(zipfile):
+    if not os.path.isfile("../get_name"):
+        return None
+    return subprocess.check_output(["bash", "-c", "unzip -p %s | ../get_name" % zipfile])
 
 log_time_stack=[]
 
@@ -745,19 +769,29 @@ while len(muxes)>0:
             #Sort files
             log_start("sort files")
             files=os.listdir(out_tmp)
+            service_headers={}
             for text_service in mux["text_services"]:
                 name=text_service[0]
                 pid=text_service[1]
                 pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
                 for f in files:
                     if f.endswith(pid_suffix):
+                        header=get_service_name(f)
+                        service_headers[name]=header
                         os.makedirs(outdir+"/"+name, exist_ok=True)
-                        log(f+" => "+outdir+"/"+name+"/"+name+"/"+f)
+                        log(f+" => "+outdir+"/"+name+"/"+name+"/"+f+"   %s" % header)
                         shutil.move(out_tmp+"/"+f, outdir+"/"+name+"/"+f)
                         files.remove(f)
                         set_service_last_used(name)
                         filecount=filecount+1
             log_end(str(filecount)+" files moved")
+            log_start("Service headers")
+            for service in service_headers:
+                if not service_headers[service] is None:
+                      log("%s  %s"%(service, service_headers[service]))
+                      set_service_header(service, service_header)
+            log_end("")
+
         remove_lock(mux["uuid"])
         for s in service_names:
             if service_names[s]==1:
