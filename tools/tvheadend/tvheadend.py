@@ -790,7 +790,7 @@ while len(muxes)>0:
             for service in service_headers:
                 if not service_headers[service] is None:
                       log("%s  %s"%(service, service_headers[service]))
-                      set_service_header(service, service_header)
+                      set_service_header(service, service_headers[service])
             log_end("")
 
         remove_lock(mux["uuid"])
