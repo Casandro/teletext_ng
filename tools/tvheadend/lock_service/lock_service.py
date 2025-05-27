@@ -9,11 +9,13 @@ import time
 import sched
 import json
 import datetime
+import base64
 
 app = FastAPI()
 
 service_lock={}
 service_last_used={}
+service_header={}
 
 #Read settings
 config={}
@@ -27,9 +29,14 @@ def store_last_used():
     with open('service_last_used.json','w') as t_file:
         json.dump(service_last_used,fp=t_file,indent=4, sort_keys=True)
 
+def store_header():
+    with open('service_header.json','w') as t_file:
+        json.dump(service_header,fp=t_file,indent=4, sort_keys=True)
+
 def load_service():
     global service_lock
     global service_last_used
+    global service_header
 
     try:
         with open('service_locks.json') as t_file:
@@ -41,6 +48,11 @@ def load_service():
            service_last_used=json.load(t_file)
     except:
         service_last_used={}
+    try:
+        with open('service_headerjson') as t_file:
+           service_header=json.load(t_file)
+    except:
+        service_header={}
 
 def is_service_locked(service):
     if not service in service_lock:
@@ -60,6 +72,11 @@ def format_delta(delta):
         return "{:0.5}".format(delta*1000)+"ms"
     return "{:0.5}".format(delta*1000000)+"µs"
 
+def service_decode(cservice):
+    if cservice.find(".")>=0:
+        return cservice
+    return base64.b64decode(cservice).decode("UTF-8")
+
 @app.get("/")
 async def read_root():
     data="<html><head><title>Status</title></head><body>"
@@ -68,18 +85,22 @@ async def read_root():
 #        data=data+"<tr><td>%s</td><td>%s</td></tr>"%(x, service_lock[x])
 #    data=data+"</table>"
     last_used_sorted=dict(sorted(service_last_used.items(), key=lambda item: item[1], reverse=False))
-    data=data+"<table><tr><th>service</th><th>age</th></tr>"
+    data=data+"<table><tr><th>service</th><th>age</th><th>header</th></tr>"
     for x in last_used_sorted:
         age_str=str(format_delta(time.time()-last_used_sorted[x]))
         if is_service_locked(x):
             age_str=age_str+ " in use"
-        data=data+"<tr><td>%s</td><td>%s</td></tr>"%(x, age_str)
+        header="no header"
+        if x in service_header:
+            header="<pre>"+service_header[service]+"</pre>"
+        data=data+"<tr><td>%s</td><td>%s</td><td>%s</td></tr>"%(x, age_str, header)
     data=data+"</table>"
     data=data+"</body></html>"
     return Response(content=data, media_type="text/html;charset=utf-8")
 
 @app.post("/set_last_used")
 async def set_last_used(service: str):
+    service=service_decode(service)
     service_last_used[service]=time.time()
     store_last_used()
     if service in service_lock:
@@ -89,8 +110,7 @@ async def set_last_used(service: str):
 
 @app.get("/get_last_used")
 async def set_last_used(service: str):
-    if is_service_locked(service):
-        return Response(content="LOCKED", media_type="text/plain;charset=utf-8")
+    service=service_decode(service)
     if service in service_last_used:
         data="%s" % service_last_used[service]
     else:
@@ -99,19 +119,31 @@ async def set_last_used(service: str):
 
 @app.post("/set_lock")
 async def set_last_used(service: str):
+    service=service_decode(service)
     if is_service_locked(service):
         return Response(content="Still Locked", status_code=400, media_type="text/plain;charset=utf-8")
     service_lock[service]=time.time()+7200
     store_locks()
     return Response(content="OK", media_type="text/plain;charset=utf-8")
 
-
 @app.post("/release_lock")
 async def set_last_used(service: str):
+    service=service_decode(service)
     if service in service_lock:
         service_lock.pop(service)
         store_locks()
     return Response(content="OK", media_type="text/plain;charset=utf-8")
+
+
+@app.post("/set_header")
+async def set_last_used(service: str, header:str):
+    service=service_decode(service)
+    header=base64.b64decode(header).decode("UTF-8")
+    service_header[service]=header;
+    store_header()
+    return Response(content="OK", media_type="text/plain;charset=utf-8")
+
+
 
 @app.on_event("startup")
 def startup_event():

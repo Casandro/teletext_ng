@@ -11,6 +11,7 @@ import random
 from random import randint
 import shutil
 import sys
+import base64
 
 
 tvheadend_ip="127.0.0.1"
@@ -142,9 +143,13 @@ def get_lock(muxname):
         return False
     return False
 
+def encode_service_name(service):
+    return base64.b64encode(service.encode("UTF-8")).decode("UTF-8")
+
 def get_service_lock(service):
     if len(locking_service)>8:
         try:
+            service=encode_service_name(service)
             req=requests.post(locking_service+"/set_lock?service=%s" % service)
             req.encoding="UTF-8"
             if req.status_code==200:
@@ -166,6 +171,7 @@ def remove_lock(muxname):
 def remove_service_lock(service):
     if len(locking_service)>8:
         try:
+            service=encode_service_name(service)
             req=requests.post(locking_service+"/release_lock?service=%s" % service)
             req.encoding="UTF-8"
             return True
@@ -187,6 +193,7 @@ def set_service_last_used(service):
     if len(locking_service)<8:
         return set_last_used(service)
     try:
+        service=encode_service_name(service)
         req=requests.post(locking_service+"/set_last_used?service=%s" % service)
         req.encoding="UTF-8"
         if req.status_code==200:
@@ -227,6 +234,7 @@ def get_service_last_used(service):
         last_used_cache["cache_"+service]=time.time()+30
         return last_used
     try:
+        service=encode_service_name(service)
         req=requests.get(locking_service+"/get_last_used?service=%s" % service)
         req.encoding="UTF-8"
         last_used_cache["cache_"+service]=time.time()+10
@@ -390,7 +398,6 @@ def format_delta(delta):
     if a>0.001:
         return "{:0.5}".format(delta*1000)+"ms"
     return "{:0.5}".format(delta*1000000)+"µs"
-
 
 log_time_stack=[]
 
