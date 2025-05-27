@@ -255,7 +255,7 @@ def get_service_last_used(service):
 def set_service_header(service, service_header):
     try:
         b64_service=encode_service_name(service)
-        b64_service_hader=base64.b64encode(service_header.encode("UTF-8")).decode("UTF-8")
+        b64_service_hader=base64.b64encode(service_header).decode("UTF-8")
         req=requests.post(locking_service+"/set_header?service=%s&header=%s" % (b64_service,b64_service_header))
         req.encoding="UTF-8"
         last_used_cache["cache_"+service]=time.time()+10
