@@ -778,7 +778,7 @@ while len(muxes)>0:
                 pid_suffix="-0x"+"{:04x}".format(pid)+".zip"
                 for f in files:
                     if f.endswith(pid_suffix):
-                        header=get_service_name(f)
+                        header=get_service_name(out_tmp+"/"+f)
                         service_headers[name]=header
                         os.makedirs(outdir+"/"+name, exist_ok=True)
                         log(f+" => "+outdir+"/"+name+"/"+name+"/"+f+"   %s" % header)
