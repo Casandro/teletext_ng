@@ -422,6 +422,7 @@ def format_delta(delta):
 def get_service_name(zipfile):
     if not os.path.isfile("../get_name"):
         return None
+    log("get_service_name %s" % zipfile)
     return subprocess.check_output(["bash", "-c", "unzip -p %s | ../get_name" % zipfile])
 
 log_time_stack=[]
