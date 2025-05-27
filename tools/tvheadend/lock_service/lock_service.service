@@ -1,0 +1,12 @@
+[Unit]
+Description=teletext_ng locking service
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/usr/local/bin/lock_service.py
+WorkingDirectory=/var/spool/lock_service
+
+[Install]
+WantedBy=multi-user.target

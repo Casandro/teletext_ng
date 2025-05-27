@@ -109,7 +109,7 @@ async def set_last_used(service: str):
     return Response(content="OK", media_type="text/plain;charset=utf-8")
 
 @app.get("/get_last_used")
-async def set_last_used(service: str):
+async def get_last_used(service: str):
     service=service_decode(service)
     if service in service_last_used:
         data="%s" % service_last_used[service]
@@ -118,7 +118,7 @@ async def set_last_used(service: str):
     return Response(content=data, media_type="text/plain;charset=utf-8")
 
 @app.post("/set_lock")
-async def set_last_used(service: str):
+async def set_lock(service: str):
     service=service_decode(service)
     if is_service_locked(service):
         return Response(content="Still Locked", status_code=400, media_type="text/plain;charset=utf-8")
@@ -127,7 +127,7 @@ async def set_last_used(service: str):
     return Response(content="OK", media_type="text/plain;charset=utf-8")
 
 @app.post("/release_lock")
-async def set_last_used(service: str):
+async def release_lock(service: str):
     service=service_decode(service)
     if service in service_lock:
         service_lock.pop(service)
@@ -136,13 +136,20 @@ async def set_last_used(service: str):
 
 
 @app.post("/set_header")
-async def set_last_used(service: str, header:str):
+async def set_header_post(service: str, header:str):
     service=service_decode(service)
     header=base64.b64decode(header).decode("UTF-8")
     service_header[service]=header;
     store_header()
     return Response(content="OK", media_type="text/plain;charset=utf-8")
 
+@app.get("/set_header")
+async def set_header_get(service: str, header:str):
+    service=service_decode(service)
+    header=base64.b64decode(header).decode("UTF-8")
+    service_header[service]=header;
+    store_header()
+    return Response(content="OK", media_type="text/plain;charset=utf-8")
 
 
 @app.on_event("startup")
