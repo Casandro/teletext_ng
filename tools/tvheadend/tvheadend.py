@@ -254,21 +254,14 @@ def get_service_last_used(service):
 
 def set_service_header(service, service_header):
     try:
-        service=encode_service_name(service)
-        req=requests.post(locking_service+"/set_header?service=%s&header=%s" % (service,service_header))
+        b64_service=encode_service_name(service)
+        b64_service_hader=base64.b64encode(service_header.encode("UTF-8")).decode("UTF-8")
+        req=requests.post(locking_service+"/set_header?service=%s&header=%s" % (b64_service,b64_service_header))
         req.encoding="UTF-8"
         last_used_cache["cache_"+service]=time.time()+10
-        if req.text=="":
-            return 1e10
-        if req.status_code==200:
-            last_used=float(req.text)
-            last_used_cache[service]=last_used
-            return last_used
-        log("set_service_header%s for %s" % (req.status_code, service) )
-        return 1e10
+        log("set_service_header%s for %s header: %s" % (req.status_code, b64_service, b64_service_header) )
     except:
         log("set_service_header Request failed %s for %s" % (req.status_code, service))
-        return get_last_used(service)
     return False
 
 def use_mux(mux):
