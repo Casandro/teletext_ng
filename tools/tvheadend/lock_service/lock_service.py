@@ -49,7 +49,7 @@ def load_service():
     except:
         service_last_used={}
     try:
-        with open('service_headerjson') as t_file:
+        with open('service_header.json') as t_file:
            service_header=json.load(t_file)
     except:
         service_header={}
@@ -92,7 +92,8 @@ async def read_root():
             age_str=age_str+ " in use"
         header="no header"
         if x in service_header:
-            header="<pre>"+service_header[service]+"</pre>"
+            sheader=service_header[x]
+            header="<tt>"+sheader.rstrip()+"</tt>"
         data=data+"<tr><td>%s</td><td>%s</td><td>%s</td></tr>"%(x, age_str, header)
     data=data+"</table>"
     data=data+"</body></html>"
