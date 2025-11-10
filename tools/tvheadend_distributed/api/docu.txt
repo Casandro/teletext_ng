@@ -1,0 +1,34 @@
+HTTP-API
+
+This is a sketch:
+
+/translation
+POST
+JSON-Struktur:
+Array
+  Hash (Key: random e.g. UUID of transponder+pid)
+    Value:
+      Hash:
+        Frequency, Symbolrate, Position, Polarization, Service-Name...
+Result:
+Array
+  Hash (Key: as above)
+   Value: servicename
+
+/last_use
+GET
+Result:
+Hash (Key: servicename)
+Value: Array (last_use, locked)
+
+/lock
+POST
+Array: servicenames
+Result code: (2xx if any service was not already locked, 4xx otherwise)
+
+/post
+Hash:
+  Key: service_name, Value: service_name
+  Key: date, Value: date/time
+  Key: pid, Value: PID
+  Key: data, Value Base64 encoded bzip compressed ZIP file
