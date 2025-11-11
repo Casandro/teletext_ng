@@ -271,7 +271,7 @@ void print_full_status(const char *statusfile)
 	}
 
 	if (last_update==NULL) {
-		last_update=calloc(sizeof(struct timeval),1);
+		last_update=calloc(1,sizeof(struct timeval));
 	}
 	struct timeval now;
 	gettimeofday(&now, NULL);
@@ -282,7 +282,7 @@ void print_full_status(const char *statusfile)
 	last_update->tv_usec=now.tv_usec;
 	
 	if (first_update==NULL) {
-		first_update=calloc(sizeof(struct timeval),1);
+		first_update=calloc(1,sizeof(struct timeval));
 		first_update->tv_sec=now.tv_sec;
 		first_update->tv_usec=now.tv_usec;
 	}
