@@ -17,6 +17,7 @@ class handler(BaseHTTPRequestHandler):
         body_bytes=self.rfile.read(content_len)
         try:
             full_json=json.loads(body_bytes.decode("utf-8"))
+            print(json.dumps(full_json, indent=True))
         except Exception as e:
             self.send_response(500)
             self.send_header("Content-Type", "text/plain")
@@ -32,11 +33,16 @@ class handler(BaseHTTPRequestHandler):
             output=self.translations(body)
         if endpoint == "oldest_service":
             output=self.oldest_service(body)
+        if endpoint == "upload":
+            output=self.upload(body)
+        if endpoint in ("lock", "unlock"):
+            output=self.lock_unlock(body, endpoint)
         if output is None:
             self.send_response(404)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
             self.wfile.write(bytes("Wurst", "utf-8"))
+        print(json.dumps(output, indent=True))
         self.send_response(200)
         self.send_header("Content-Type", "text/json")
         self.end_headers()
@@ -49,7 +55,23 @@ class handler(BaseHTTPRequestHandler):
         return names
     def oldest_service(self, services):
         global teletext_server
-        return teletext_server.getOldestServiceAge(services)
+        output={}
+        for uuid in services:
+            service=services[uuid]
+            r=teletext_server.getOldestServiceAge(service)
+            output[uuid]=r
+        return output
+    def upload(self, body):
+        r=teletext_server.upload(body["service"], body["time"], body["pid"], body["content"])
+        return r
+    def lock_unlock(self, body, endpoint):
+        cnt=0
+        for service in body:
+            if teletext_server.lockUnlockService(service, endpoint):
+                cnt=cnt+1
+        if cnt==0: #Locking didn't work
+            return "Could not lock"
+        return "OK"
 
 
 
@@ -123,22 +145,22 @@ class TeletextServer:
         self.users=ConfigFileHandler(var_directory+"/users.json")
         with open('translations.json') as t_file:
            self.legacy_translations=json.load(t_file)
-    def lockService(self, service_name):
+    def lockUnlockService(self, service_name, endpoint):
         s=self.service_locks.get(service_name)
         if s is None:
             s={}
-            s["lock"]=None
+            s["locked"]=False
             s["last_used"]=None
-        s["lock"]=time.time()
+        if endpoint=="lock":
+            if "locked" in s and s["locked"]:
+                return False
+            s["locked"]=True
+            s["locked_until"]=time.time()+8000
+        else: #Unlock
+            s["locked"]=False
+            s["locked_until"]=0
         self.service_locks.set(service_name, s)
-    def unlockService(self, service_name):
-        s=self.service_locks.get(service_name)
-        if s is None:
-            s={}
-            s["lock"]=None
-            s["last_used"]=None
-        s["lock"]=None
-        self.service_locks.set(service_name, s)
+        return True
     def getOldestServiceAge(self, service_names):
         oldest_time=time.time()
         for name in service_names:
@@ -146,10 +168,27 @@ class TeletextServer:
             # If the service is unknown, asume it never was used
             if s is None:
                 return 0;
+            if "locked_until" in s and not (s["locked_until"] is None) and s["locked_until"]<time.time():
+                s["locked"]=False
+                s["locked_until"]=0
+                self.service_locks.set(name, s)
+            if "locked" in s and s["locked"]:
+                continue
             if "last_used" in s and not (s["last_used"] is None):
                 if s["last_used"] < oldest_time:
                     oldest_time=s["last_used"]
-        return oldest_times["last_used"]
+        return oldest_time
+
+    def upload(self, service, dumptime, pid, content):
+        s=self.service_locks.get(service)
+        if s is None:
+            s={}
+        s["locked"]=False
+        s["locked_until"]=time.time()
+        s["last_used"]=time.time()
+        self.service_locks.set(service, s)
+        return "OK"
+
     def getLegacyServiceName(self, service):
         mux_name=""
         orbital=""

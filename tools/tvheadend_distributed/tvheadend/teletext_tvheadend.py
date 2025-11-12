@@ -11,61 +11,28 @@ from random import randint
 import shutil
 import sys
 import base64
+import gzip
 import subprocess
+import operator
 import logging
 
 
 class TVHeadend:
-    cache_mtime=None
-    cache_flush=None
     def __init__(self, username, password, path):
         self.username=username
         self.password=password
         self.path=path
-        self.cachefile="/tmp/tvheadend_teletext.cache"
-        self.cache={}
-        self.loadCache()
     def getJson(self, path):
         logging.debug("getJson")
-        req=requests.get(self.path+"/"+path, auth=HTTPDigestAuth(self.username, self.password))
+        req=requests.get(self.path+"/api/"+path, auth=HTTPDigestAuth(self.username, self.password))
         req.encoding="utf-8"
         if req.status_code!=200:
             raise Exception("status_code: %s, text:%s" % (req_status_code, req.text))
         return json.loads(req.text)
-    def loadCache(self):
-        if not os.path.exists(self.cachefile):
-            return
-        if (not (self.cache_mtime is None)) and (self.cache_mtime <= os.path.getmtime(self.cachefile)):
-            return
-        print("loadCache actual load %s %s"%(self.cache_mtime, os.path.getmtime(self.cachefile)))
-        with open(self.cachefile) as f:
-            self.cache=json.load(f)
-        self.cache_mtime=os.path.getmtime(self.cachefile)
-    def saveCache(self, force=True):
-        if self.cache_flush is None or self.cache_flush > time.time():
-            return
-        print("save Cache %s %s" %(self.cache_flush,time.time()))
-        with open(self.cachefile, "w") as f:
-            json.dump(self.cache, f)
-        self.cache_mtime=time.time()
-        self.cache_flush=None
     def getObject(self, uuid):
         return self.getJson("raw/export?uuid=%s" % uuid)
-    def getMultiplex(self, uuid, last_scan):
-        self.loadCache()
-        if not (self.cache is None) and uuid in self.cache:
-            mux=self.cache[uuid]
-            if "time" in mux and mux["time"]>=last_scan:
-                return mux["data"]
-        mux=self.getObject(uuid)
-        tmp={}
-        tmp["time"]=last_scan
-        tmp["data"]=mux
-        self.cache[uuid]=tmp
-        if self.cache_flush is None:
-            self.cache_flush=time.time()+10
-        self.saveCache()
-        return mux
+    def getMuxCmd(self, uuid, pids):
+        return "wget -o /dev/null -O - --read-timeout=20 --tries=1 %s/stream/mux/%s?pids=0,1,%s --user=%s --password=%s " % (self.path, uuid, ",".join(map(str,pids)), self.username, self.password)
 
 
 def copy_properties(input_h, prop_list):
@@ -93,14 +60,23 @@ class TeletextServer:
 
 
 class TVHeadendServer:
+    mux_list=[]
+    tmpdir="/tmp/"
+    outdir="/tmp/outdir/"
     def __init__(self, tvh_user, tvh_password, tvh_path, tts_path, tts_user, tts_token):
+        self.tvheadend_path=tvh_path 
         self.tvheadend=TVHeadend(tvh_user, tvh_password, tvh_path)
         self.teletextserver=TeletextServer(tts_path, tts_user, tts_token)
         self.update_services()
         self.update_oldest_changed()
+        self.handle_transponders()
 #        print(json.dumps(self.muxes, indent=True))
     def update_services(self):
         muxes_raw=self.tvheadend.getJson("raw/export?class=dvb_mux")
+        services_raw=self.tvheadend.getJson("raw/export?class=service")
+        services_hash={}
+        for service in services_raw:
+            services_hash[service["uuid"]]=service
         self.muxes={}
         for mux in muxes_raw:
             if (not "scan_last" in mux) or mux["scan_last"] == 0:
@@ -108,22 +84,20 @@ class TVHeadendServer:
             last_scan=mux["scan_last"]
             text_services={}
             for s in mux["services"]:
-                service_raw=self.tvheadend.getMultiplex(s, last_scan)
-                for service in service_raw:
-                    nservice={}
-                    for stream in service["stream"]:
-                        if stream["type"]!="TELETEXT":
-                            continue
-                        text_temp={}
-                        text_temp["properties"]=copy_properties(service, ("svcname", "provider", "last_seen"))
-                        text_services[stream["pid"]]=text_temp
+                service=services_hash[s]
+                nservice={}
+                for stream in service["stream"]:
+                    if stream["type"]!="TELETEXT":
+                        continue
+                    text_temp={}
+                    text_temp["properties"]=copy_properties(service, ("svcname", "provider", "last_seen"))
+                    text_services[stream["pid"]]=text_temp
             if len(text_services)==0:
                 continue
             omux={}
             omux["properties"]=copy_properties(mux, ("frequency", "symbolrate", "orbital", "delsys", "polarisation"))
             omux["texts"]=text_services
             self.muxes[mux["uuid"]]=omux
-        self.tvheadend.saveCache(force=True)
         self.update_service_names()
 
     def update_service_names(self): #Update service names
@@ -171,15 +145,105 @@ class TVHeadendServer:
                 new_muxes[mux_id]=mux
         self.muxes=new_muxes
 
-    def update_oldest_changed(self):
+    def update_oldest_changed(self): #Fixme, create version that works on self.mux_list
+        service_hash={}
         for mux_id in self.muxes:
             mux=self.muxes[mux_id]
-            tmp=self.teletextserver.getJson("oldest_service", mux["service_names"])
-            mux["oldest_changed"]=tmp
+            service_hash[mux_id]=mux["service_names"]
+        tmp=self.teletextserver.getJson("oldest_service", service_hash)
+        tmp_list=[]
+        for mux_id in self.muxes:
+            tmp_list.append([mux_id, 0])
+        self.mux_list=tmp_list
+        self.update_oldest_changes_from_list()
+
+    def update_oldest_changes_from_list(self): # Updates self.mux_list
+        service_hash={}
+        for mux_li in self.mux_list:
+            mux_id=mux_li[0]
+            mux=self.muxes[mux_id]
+            service_hash[mux_id]=mux["service_names"]
+        tmp=self.teletextserver.getJson("oldest_service", service_hash)
+        tmp_list=[]
+        for mux_id in tmp:
+            mux=self.muxes[mux_id]
+            if "oldest_changed" in mux and mux["oldest_changed"]<tmp[mux_id]: #If the oldest time on the mux has been updated
+                continue # skip that mux, so we won't use it again this cyle
+            mux["oldest_changed"]=tmp[mux_id]
+            tmp_list.append([mux_id, tmp[mux_id]])
+        self.mux_list=sorted(tmp_list, key=operator.itemgetter(1))
+
+            
+    def handle_transponders(self): 
+        while len(self.mux_list)>0:
+            mux=self.mux_list[0]
+            self.mux_list.remove(mux)
+            self.handle_transponder(mux[0])
+            self.update_oldest_changes_from_list()
+        return
+    
+    def handle_transponder(self, uuid):
+        capture_time=time.time()
+#        date_prefix=datetime.datetime.utcfromtimestamp(capture_time).isoformat(timespec="seconds")+"+00:00"
+        date_prefix=datetime.datetime.fromtimestamp(capture_time, datetime.UTC).isoformat(timespec="seconds")
+
+        path="%s/%s" % (self.tmpdir,uuid)
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        prefix="%s/%s-" % (path, date_prefix)
+        mux=self.muxes[uuid]
+        pids=[]
+        service_names=[]
+        for pid in mux["texts"]:
+            pids.append(pid)
+            name=mux["texts"][pid]["service_name"]
+            if not name in service_names:
+                service_names.append(name)
+        tmp=self.teletextserver.getJson("lock", service_names)
+        print(tmp)
+        if tmp!="OK":
+            print("Locking did not work")
+            tmp=self.teletextserver.getJson("unlock", service_names)
+            print(tmp)
+
+        wget_cmd=self.tvheadend.getMuxCmd(uuid, pids)
+        tsteletext_cmd="ts_teletext --ts --stop -p%s" % (prefix)
+        cmd="timeout 8000 %s | %s > /dev/null 2> /dev/null" % (wget_cmd, tsteletext_cmd)
+        print(cmd)
+        os.system(cmd)
+
+        for pid in mux["texts"]:
+            name=mux["texts"][pid]["service_name"]
+            pid_s="0x{:04x}.zip".format(pid)
+            filename=prefix+pid_s
+            if not os.path.isfile(filename):
+                print("File %s does not exist" % (filename))
+                continue
+            with open(filename, "rb") as f:
+                content_bin=f.read()
+            content_gzip=gzip.compress(content_bin)
+            content_base64=base64.b64encode(content_gzip).decode("ASCII")
+            print("raw: %s, gzip: %s, base64: %s" % (len(content_bin), len(content_gzip), len(content_base64)))
+            odir=self.outdir+"/"+name
+            if not os.path.isdir(odir):
+                os.makedirs(odir)
+            shutil.move(filename, odir)
+            print(filename, name)
+            service_hash={}
+            service_hash["service"]=name
+            service_hash["time"]=capture_time
+            service_hash["pid"]=pid
+            service_hash["content"]=content_base64
+            tmp=self.teletextserver.getJson("upload", service_hash)
+            print(tmp)
+        tmp=self.teletextserver.getJson("unlock", service_names)
+        #todo: remove transponders that only have "service_name" services
+        return
+
 
             
 
 #logging.basicConfig(level=0)
-server=TVHeadendServer("teletext", "teletext", "http://192.168.5.5:9981/api", "http://localhost:8888/", "wurst", "passwort")
+server=TVHeadendServer("teletext", "teletext", "http://192.168.5.5:9981/", "http://localhost:8888/", "wurst", "passwort")
 
 #print(json.dumps(server.muxes, indent=True))
