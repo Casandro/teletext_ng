@@ -3,6 +3,9 @@
 import os
 import json
 import time
+import datetime
+import gzip
+import base64
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -17,7 +20,7 @@ class handler(BaseHTTPRequestHandler):
         body_bytes=self.rfile.read(content_len)
         try:
             full_json=json.loads(body_bytes.decode("utf-8"))
-            print(json.dumps(full_json, indent=True))
+            print(json.dumps(full_json, indent=True)[:500])
         except Exception as e:
             self.send_response(500)
             self.send_header("Content-Type", "text/plain")
@@ -42,7 +45,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
             self.wfile.write(bytes("Wurst", "utf-8"))
-        print(json.dumps(output, indent=True))
+        print(json.dumps(output, indent=True)[:500])
         self.send_response(200)
         self.send_header("Content-Type", "text/json")
         self.end_headers()
@@ -138,14 +141,17 @@ class TeletextServer:
     def __init__(self, path):
         basic_config=ConfigFileHandler(path)
         var_directory=basic_config.get("var_dir")
-        if not var_directory is None:
+        print("var_directory: %s" % var_directory)
+        if var_directory is None:
             var_directory="/var/spool/teletext_server"
         self.translations=ConfigFileHandler(var_directory+"/translations.json")
         self.service_locks=ConfigFileHandler(var_directory+"/locks.json")
         self.users=ConfigFileHandler(var_directory+"/users.json")
+        self.out_dir=basic_config.get("out_dir")
         with open('translations.json') as t_file:
            self.legacy_translations=json.load(t_file)
     def lockUnlockService(self, service_name, endpoint):
+        print("lockUnlockService %s %s" %( service_name, endpoint))
         s=self.service_locks.get(service_name)
         if s is None:
             s={}
@@ -180,13 +186,17 @@ class TeletextServer:
         return oldest_time
 
     def upload(self, service, dumptime, pid, content):
+        path=self.out_dir+"/"+service.replace("/", "").replace("\\","").replace(" ","")
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        filename=path+"/"+datetime.datetime.fromtimestamp(dumptime, datetime.UTC).isoformat(timespec="seconds")+"-0x"+"{:04x}".format(pid)+".zip"
+        print(filename)
+        with open(filename, "wb") as f:
+            f.write(gzip.decompress(base64.b64decode(content)))
+        self.lockUnlockService(service, "unlock")
         s=self.service_locks.get(service)
-        if s is None:
-            s={}
-        s["locked"]=False
-        s["locked_until"]=time.time()
         s["last_used"]=time.time()
-        self.service_locks.set(service, s)
+
         return "OK"
 
     def getLegacyServiceName(self, service):

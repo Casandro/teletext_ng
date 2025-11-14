@@ -17,6 +17,41 @@ import operator
 import logging
 
 
+class tvhLogger:
+    chain = None
+    def __init__(self, chain=None):
+        self.ident=0
+        self.stack=[]
+        self.table=[]
+    def logStart(self, s):
+        print(s)
+    def logEnd(self, s=None):
+        print(s)
+    def log(self, s):
+        print(s)
+    def log_table(self, l):
+        self.table.append(l)
+    def log_table_end(self):
+        width={}
+        for line in self.table:
+            c=0
+            for col in line:
+                x=len(col)
+                if not c in width:
+                    width[c]=x
+                else:
+                    if x>width[c]:
+                        width[c]=x
+                c=c+1
+        for line in self.table:
+            c=0
+            l=""
+            for col in line:
+                l=l+col+" "*(width[c]-len(col)+1)
+            self.log(l)
+        self.table=[]
+
+
 class TVHeadend:
     def __init__(self, username, password, path):
         self.username=username
@@ -64,6 +99,7 @@ class TVHeadendServer:
     tmpdir="/tmp/"
     outdir="/tmp/outdir/"
     def __init__(self, tvh_user, tvh_password, tvh_path, tts_path, tts_user, tts_token):
+        self.logger=tvhLogger()
         self.tvheadend_path=tvh_path 
         self.tvheadend=TVHeadend(tvh_user, tvh_password, tvh_path)
         self.teletextserver=TeletextServer(tts_path, tts_user, tts_token)
@@ -72,6 +108,7 @@ class TVHeadendServer:
         self.handle_transponders()
 #        print(json.dumps(self.muxes, indent=True))
     def update_services(self):
+        self.logger.logStart("Update Services")
         muxes_raw=self.tvheadend.getJson("raw/export?class=dvb_mux")
         services_raw=self.tvheadend.getJson("raw/export?class=service")
         services_hash={}
@@ -99,8 +136,10 @@ class TVHeadendServer:
             omux["texts"]=text_services
             self.muxes[mux["uuid"]]=omux
         self.update_service_names()
+        self.logger.logEnd("Update Services")
 
     def update_service_names(self): #Update service names
+        self.logger.logStart("Update Service Names")
         services={}
         for sn in self.muxes:
             s=self.muxes[sn]
@@ -144,8 +183,10 @@ class TVHeadendServer:
                 mux["service_names"]=service_names
                 new_muxes[mux_id]=mux
         self.muxes=new_muxes
+        self.logger.logEnd("Update Service Names")
 
     def update_oldest_changed(self): #Fixme, create version that works on self.mux_list
+        self.logger.logStart("Update Oldest Changed")
         service_hash={}
         for mux_id in self.muxes:
             mux=self.muxes[mux_id]
@@ -155,7 +196,8 @@ class TVHeadendServer:
         for mux_id in self.muxes:
             tmp_list.append([mux_id, 0])
         self.mux_list=tmp_list
-        self.update_oldest_changes_from_list()
+        self.update_oldest_changes_from_list() 
+        self.logger.logEnd("Update Service Names")
 
     def update_oldest_changes_from_list(self): # Updates self.mux_list
         service_hash={}
@@ -183,6 +225,7 @@ class TVHeadendServer:
         return
     
     def handle_transponder(self, uuid):
+        self.logger.logStart("Handle Transponder %s" % uuid)
         capture_time=time.time()
 #        date_prefix=datetime.datetime.utcfromtimestamp(capture_time).isoformat(timespec="seconds")+"+00:00"
         date_prefix=datetime.datetime.fromtimestamp(capture_time, datetime.UTC).isoformat(timespec="seconds")
@@ -199,6 +242,8 @@ class TVHeadendServer:
             name=mux["texts"][pid]["service_name"]
             if not name in service_names:
                 service_names.append(name)
+            self.logger.log_table((str(pid), name, str(mux["texts"][pid]["properties"])))
+        self.logger.log_table_end()
         tmp=self.teletextserver.getJson("lock", service_names)
         print(tmp)
         if tmp!="OK":
@@ -211,6 +256,8 @@ class TVHeadendServer:
         cmd="timeout 8000 %s | %s > /dev/null 2> /dev/null" % (wget_cmd, tsteletext_cmd)
         print(cmd)
         os.system(cmd)
+        for x in ("frequency", "symbolrate", "orbital"):
+            print(mux["properties"][x])
 
         for pid in mux["texts"]:
             name=mux["texts"][pid]["service_name"]
@@ -223,7 +270,7 @@ class TVHeadendServer:
                 content_bin=f.read()
             content_gzip=gzip.compress(content_bin)
             content_base64=base64.b64encode(content_gzip).decode("ASCII")
-            print("raw: %s, gzip: %s, base64: %s" % (len(content_bin), len(content_gzip), len(content_base64)))
+            self.logger.log_table([str(pid), len(content_bin), len(content_gzip), len(content_base64)])
             odir=self.outdir+"/"+name
             if not os.path.isdir(odir):
                 os.makedirs(odir)
@@ -235,9 +282,12 @@ class TVHeadendServer:
             service_hash["pid"]=pid
             service_hash["content"]=content_base64
             tmp=self.teletextserver.getJson("upload", service_hash)
-            print(tmp)
+            with open("/tmp/service_log", "a") as f:
+                f.write("%s;%s;%s;%s\n" % (mux["properties"]["frequency"], name, mux["texts"][pid]["properties"], len(content_bin)))
+        self.logger.log_table_end()
         tmp=self.teletextserver.getJson("unlock", service_names)
         #todo: remove transponders that only have "service_name" services
+        self.logger.logEnd("")
         return
 
 
