@@ -298,6 +298,12 @@ int write_all_pages(all_pages_t *p)
 	}
 	zip_close(p->zipfile);
 	printf(" %d datasets written\n", cnt);
+	char *hfn=NULL;
+	asprintf(&hfn, "%s.txt", p->name);
+	FILE *f=fopen(hfn, "w");
+	fprintf(f,"%s", p->last_header);
+	fclose(f);
+	free(hfn);
 	return cnt;
 }
 
