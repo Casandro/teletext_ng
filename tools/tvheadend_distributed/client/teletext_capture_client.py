@@ -278,6 +278,6 @@ def handle_transponder_thread(tvh):
 
 #logging.basicConfig(level=0)
 #server=TVHeadendServer("teletext", "teletext", "http://192.168.5.5:9981/", "http://localhost:8888/", "wurst", "passwort")
-server=TVHeadendServer("wurst.conf")
+server=TVHeadendServer("wurst.json")
 
 #print(json.dumps(server.muxes, indent=True))
