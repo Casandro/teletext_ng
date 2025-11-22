@@ -164,8 +164,13 @@ class MuxHandler:
             with open(self.muxfile, "r") as f:
                 self.muxes=json.load(f)
     def save_to_file(self):
-        with open(self.muxfile, "w") as f:
+        with open(self.muxfile+".tmp", "w") as f:
             json.dump(self.muxes, f, indent=1)
+        if os.path.exists(self.muxfile+".bak"):
+            os.unlink(self.muxfile+".bak")
+        if os.path.exists(self.muxfile):
+            os.rename(self.muxfile, self.muxfile+".bak")
+        os.rename(self.muxfile+".tmp", self.muxfile)
     def legacy_translate(self, mux, service):
         muxname=""
         if "delsys" in mux:
