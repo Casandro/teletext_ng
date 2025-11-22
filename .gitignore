@@ -14,5 +14,3 @@ tools/dump_tta_text_colour
 tools/dump_tta_text_raw
 tools/get_name
 tools/tvheadend_distributed/api/simpler.txt
-tools/tvheadend_distributed/client/
-tools/tvheadend_distributed/server/conf/
