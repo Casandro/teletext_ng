@@ -1,8 +1,11 @@
+#define _GNU_SOURCE
+
 #include "page.h"
 #include "hamming.h"
 #include <stdlib.h>
 #include <string.h>
 #include "status_output.h"
+#include <stdio.h>
 
 
 int extended_row(const uint8_t row, const uint8_t *data)
