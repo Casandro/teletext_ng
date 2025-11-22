@@ -284,8 +284,8 @@ class MuxHandler:
 
 class TeletextServer:
     def __init__(self, path):
-        basic_config=ConfigFileHandler(path)
-        var_directory=basic_config.get("var_dir")
+        self.basic_config=ConfigFileHandler(path)
+        var_directory=self.basic_config.get("var_dir")
         print("var_directory: %s" % var_directory)
         if var_directory is None:
             var_directory="/var/spool/teletext_server"
@@ -293,7 +293,10 @@ class TeletextServer:
         self.muxhandler=MuxHandler(var_directory+"/muxes.json")
         self.mux_translations=ConfigFileHandler(var_directory+"/mux_translations.json")
         self.text_services=ConfigFileHandler(var_directory+"/text_services.json")
-        self.out_dir=basic_config.get("out_dir")
+        self.out_dir=self.basic_config.get("out_dir")
+
+    def get_http_port(self):
+        return self.basic_config.get("listen_port")
 
     def upload(self, user, body):
         local_mux=body["mux"]
@@ -544,10 +547,9 @@ class TeletextServer:
         return True
 
 
+teletext_server=TeletextServer("/etc/teletext_server.json")
 
-teletext_server=TeletextServer("conf/teletext_server.conf")
-
-with HTTPServer(('', 8888), handler) as server:
+with HTTPServer(('', teletext_server.get_http_port()), handler) as server:
     server.serve_forever()
 
 
