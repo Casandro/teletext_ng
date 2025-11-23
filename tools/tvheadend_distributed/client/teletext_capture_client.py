@@ -134,7 +134,7 @@ class TeletextServer:
         self.path=path
         self.user=user
         self.token=token
-    def getJson(self, endpoint, i):
+    def getJson(self, endpoint, i, retries=10):
         body={}
         body["token"]=self.token
         body["user"]=self.user
@@ -142,9 +142,19 @@ class TeletextServer:
         body["body"]=i
         #Fixme: compress data!
 
-        with open("/tmp/teletext-%s-%s" % (endpoint, round(time.time())), "w") as f:
-            f.write(json.dumps(body))
-        req=requests.post(self.path, data=gzip.compress(json.dumps(body).encode("UTF-8")), headers={"Content-Encoding": "gzip"})
+#        with open("/tmp/teletext-%s-%s" % (endpoint, round(time.time())), "w") as f:
+#            f.write(json.dumps(body))
+        timeout=1
+        cnt=0
+        status_code=None
+        while status_code!=200:
+            cnt=cnt+1
+            req=requests.post(self.path, data=gzip.compress(json.dumps(body).encode("UTF-8")), headers={"Content-Encoding": "gzip"})
+            status_code=req.status_code
+            if cnt>retries:
+                break
+            time.sleep(timeout)
+            timeout=timeout*1.1
         if req.status_code!=200:
             raise Exception("status_code: %s, text: %s" % (req.status_code, req.text))
         return json.loads(req.text)
@@ -173,15 +183,47 @@ class TVHeadendServer:
         if not self.config.get("outdir") is None:
             self.outdir=self.config.get("outdir")
 
+        capture_limit=1.5
+        start_time=time.time()
         
         self.logger=tvhLogger()
         self.tvheadend_path=tvh_path 
         self.tvheadend=TVHeadend(tvh_user, tvh_password, tvh_path)
         self.teletextserver=TeletextServer(tts_path, tts_user, tts_token)
-        self.update_services()
 
+        last_service_update=None
+
+        threads=[]
+        mux_sum=0
+        time_sum=0
         while True:
-            self.handle_transponder([])
+            if last_service_update is None or last_service_update < time.time()-4*3600:
+                self.update_services()
+                last_service_update=time.time()
+
+            time_sum=time_sum+1
+            mux_sum=mux_sum+len(threads)
+        
+            avg_mux=mux_sum/time_sum
+            ltime=time.time()
+            time.sleep(10)
+            for n in threads:
+                if not n.is_alive():
+                    threads.remove(n)
+            print("Current average mux number %s Current number of muxes %s" % (avg_mux, len(threads)))
+            start_new=False
+            if avg_mux<capture_limit and len(threads)<round(capture_limit+0.4):
+                start_new=True
+            if capture_limit-len(threads)>1:
+                start_new=True
+            if start_new:
+                t=threading.Thread(target=self.handle_transponder, args=())
+                t.start()
+                threads.append(t)
+
+
+    #    while True:
+     #       self.handle_transponder([])
 
     def update_services(self):
         self.logger.logStart("Update Services")
@@ -219,13 +261,14 @@ class TVHeadendServer:
         return self.teletextserver.getJson("post_muxes", self.muxes)
 
     
-    def handle_transponder(self, filterspec):
-        self.logger.logStart("Handle Transponder %s" % filterspec)
+    def handle_transponder(self):
+        self.logger.logStart("Handle Transponder %s" )
         self.logger.logStart("get JSON")
-        m=self.teletextserver.getJson("get_mux", filterspec)
+        m=self.teletextserver.getJson("get_mux", None)
         self.logger.logEnd("%s" % m)
         mux=m["mux"]
         pids=m["pids"]
+        self.internal_locks[mux]=m["names"]
         capture_time=time.time()
         # temp directory
         path=self.tmpdir
@@ -235,8 +278,10 @@ class TVHeadendServer:
 
         wget_cmd=self.tvheadend.getMuxCmd(mux, pids)
         tsteletext_cmd="ts_teletext --ts --stop -p%s '-s'" % (prefix)
-        cmd="timeout 8000 %s | %s " % (wget_cmd, tsteletext_cmd)
+        cmd="timeout 8000 %s | %s > /dev/null" % (wget_cmd, tsteletext_cmd)
         print(cmd)
+        del self.internal_locks[mux]
+        time.sleep(1)
         self.logger.logStart("actual capture")
         os.system(cmd)
         self.logger.logEnd()
