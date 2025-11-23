@@ -41,6 +41,7 @@ class handler(BaseHTTPRequestHandler):
         user=full_json["user"]
         endpoint=full_json["endpoint"]
         body=full_json["body"]
+        printf("user: %s, endpoint: %s" % (user, endpoint))
         auth=self.authenticate(user, token, endpoint)
         if auth != True:
             self.send_response(407)
@@ -99,8 +100,11 @@ class ConfigFileHandler:
                 self.modified=os.path.getmtime(self.path)
 
     def save_file(self):
-        with open(self.path, "w") as f:
+        with open(self.path+".tmp", "w") as f:
             json.dump(self.data, f, indent=4, sort_keys=True)
+        if os.path.exists(self.path):
+            os.rename(self.path, self.path+".backup")
+        os.rename(self.path+".tmp", self.path)
 
     def get(self, key):
         if os.path.exists(self.path):
@@ -115,6 +119,9 @@ class ConfigFileHandler:
         return None
 
     def set(self, key, data):
+        if key==None:
+            raise ValueError("config set key=None")
+            return
         self.data[key]=data
         self.save_file()
         self.modified=time.time()
@@ -294,6 +301,10 @@ class TeletextServer:
         self.mux_translations=ConfigFileHandler(var_directory+"/mux_translations.json")
         self.text_services=ConfigFileHandler(var_directory+"/text_services.json")
         self.out_dir=self.basic_config.get("out_dir")
+        if self.out_dir is None:
+            print("Please set out_dir")
+            return False
+
 
     def get_http_port(self):
         return self.basic_config.get("listen_port")
@@ -333,6 +344,9 @@ class TeletextServer:
                 text_service["captures"].append([capture_time, user, length, header])
                 text_service["captures"]=self.filter_captures(text_service["captures"])
                 service_name=text_service["service_name"]
+                if service_name is None:
+                    print("Service Name = None!!!")
+                    continue
                 ts=self.text_services.get(service_name)
                 if ts is None:
                     ts={}
