@@ -364,7 +364,7 @@ class TVHeadendServer:
         tmp=self.teletextserver.getJson("upload", mux_result)
         self.logger.logEnd()
         self.logger.logEnd()
-        self.current_muxes[mux]=None
+        del self.current_muxes[mux]
         return
 
 def handle_transponder_thread(tvh):
