@@ -293,10 +293,14 @@ class TVHeadendServer:
 
     
     def handle_transponder(self):
-        self.logger.logStart("Handle Transponder %s" )
+        self.logger.logStart("Handle Transponder" )
         self.logger.logStart("get JSON")
         m=self.teletextserver.getJson("get_mux", None)
         self.logger.logEnd("%s" % m)
+        if m == False:
+            self.logger.logEnd("No mux returned")
+            return
+
         mux=m["mux"]
         mi=self.muxes[mux]
         for i in ("frequency", "polarisation", "orbital"):
