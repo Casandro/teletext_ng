@@ -355,6 +355,7 @@ class TeletextServer:
                 if "locked" in ts:
                     del ts["locked"]
                 ts["last_used"]=time.time()
+                ts["header"]=header
                 self.text_services.set(service_name, ts)
                 path=self.out_dir+"/"+service_name.replace("/", "").replace("\\","").replace(" ","")
                 if not os.path.isdir(path):
@@ -377,8 +378,8 @@ class TeletextServer:
         return "OK"
 
     def is_service_good(self, text_service):
-        if text_service["service_name"]=="BLOCK":
-            return False
+#        if text_service["service_name"]=="BLOCK":
+#            return False
         if not "captures" in text_service:
             return True 
         if len(text_service["captures"])<4:
@@ -395,13 +396,13 @@ class TeletextServer:
                 max_size=size
             size_sum=size_sum+size
             cnt=cnt+1
-        if max_size<1000:
-            return False
-        if max_size>10000:
+        avg_size=size_sum/cnt
+        if max_size>4000:
             return True
-        if avg_size>max_size/2:
-            return True
-        return False
+        #if max_size<500:
+        #    print("biggest capture to small %s", max_size)
+        #    return False
+        return True
 
     def filter_captures(self, captures):
         cutoff=time.time()-7*24*3600
@@ -423,8 +424,8 @@ class TeletextServer:
             if not self.is_service_good(ts):
                 continue
             service_name=ts["service_name"]
-            if service_name=="BLOCK":
-                continue
+#            if service_name=="BLOCK":
+#                continue
             service_info=self.text_services.get(service_name)
             if service_info is None:
                 service_info={}
@@ -452,13 +453,14 @@ class TeletextServer:
             if mux is None:
                 print("mux %s not found here" % (lmux))
                 continue
-            if "locked" in mux and mux["locked"]>=time.time():
-                print("mux %s %s is locked" % (lmux, gmux))
-                continue
+#            if "locked" in mux and mux["locked"]>=time.time():
+#                print("mux %s %s is locked" % (lmux, gmux))
+#                continue
             last=self.get_oldest_service(mux)
             if last==False:
                 continue
-            if last is None and not mux is None:
+            # At least one service has not yet been captured
+            if last is None:
                 oldest_mux=mux
                 oldest_lmux=lmux
                 print("last is none and not mux is none")
@@ -472,7 +474,7 @@ class TeletextServer:
             print("OLDEST_MUX is None!!!!")
             return False
 
-        oldest_mux["locked"]=round(time.time()+8000)
+        oldest_mux["locked"]=round(time.time()+600)
         pids=[]
         service_names={}
         for x in oldest_mux["text_services"]:
@@ -483,7 +485,7 @@ class TeletextServer:
             s=self.text_services.get(service_name)
             if s is None:
                 s={}
-            s["locked"]=time.time()+8000
+            s["locked"]=time.time()+600
             self.text_services.set(service_name, s)
             p=int(x)
             if not p in pids:
@@ -542,19 +544,24 @@ class TeletextServer:
                 lu=s["last_used"]
             locked=False
             if "locked" in s:
-                locked=s["locked"]
-            if locked>time.time():
-                locked=True
-            mux_list.append([lu, sn, locked])
+                locked=round(s["locked"]-time.time())
+            if locked>0:
+                if "user" in s:
+                    locked=s["user"]
+            header=None
+            if "header" in s:
+                header=s["header"]
+            mux_list.append([lu, sn, locked, header])
 
         for m in sorted(mux_list, key=operator.itemgetter(0)):
             lu=m[0]
             sn=m[1]
             locked=m[2]
+            header=m[3]
             lu_string="never"
             if lu>0:
                 lu_string=datetime.timedelta(seconds=(round((time.time()-lu))))
-            self.writeRow(wfile, [sn, lu_string, locked])
+            self.writeRow(wfile, [sn, lu_string, locked, header])
         
         wfile.write(b"</table>")
         wfile.write(b"</body>")
@@ -572,6 +579,7 @@ class TeletextServer:
         self.mux_translations.set(user, mux_translations)
         return True
     def status(self, user, body):
+        print("Status: %s" % body)
         duration=body["duration"]
         muxes=body["muxes"]
         for mux in muxes:
@@ -583,6 +591,18 @@ class TeletextServer:
             if mux is None:
                 continue
             mux["locked"]=time.time()+duration
+            if "text_services" in mux:
+                text_services=mux["text_services"]
+                for pid in text_services:
+                    ts=text_services[pid]
+                    sn=ts["service_name"]
+                    if not sn is None:
+                        s=self.text_services.get(sn)
+                        if s is None:
+                            s={}
+                        s["locked"]=time.time()+duration
+                        s["user"]=user
+                        self.text_services.set(sn, s)
         return True
 
 teletext_server=TeletextServer("/etc/teletext_server.json")
