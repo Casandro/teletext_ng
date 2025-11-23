@@ -41,7 +41,7 @@ class handler(BaseHTTPRequestHandler):
         user=full_json["user"]
         endpoint=full_json["endpoint"]
         body=full_json["body"]
-        printf("user: %s, endpoint: %s" % (user, endpoint))
+        print("user: %s, endpoint: %s" % (user, endpoint))
         auth=self.authenticate(user, token, endpoint)
         if auth != True:
             self.send_response(407)
