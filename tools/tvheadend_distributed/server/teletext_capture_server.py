@@ -56,6 +56,8 @@ class handler(BaseHTTPRequestHandler):
             output=self.get_mux(user, body)
         if endpoint == "upload":
             output=self.upload(user, body)
+        if endpoint == "status":
+            output=teletext_server.status(user, body)
         if output is None:
             self.send_response(404)
             self.send_header("Content-Type", "text/plain")
@@ -559,7 +561,19 @@ class TeletextServer:
         self.muxhandler.save_muxes()
         self.mux_translations.set(user, mux_translations)
         return True
-
+    def status(self, user, body):
+        duration=body["duration"]
+        muxes=body["muxes"]
+        for mux in muxes:
+            local_mux=mux
+            translations=self.mux_translations.get(user)
+            mux_id=translations["local_to_global"][local_mux]
+            
+            mux=self.muxhandler.find_mux_by_id(mux_id)
+            if mux is None:
+                continue
+            mux["locked"]=time.time()+duration
+        return True
 
 teletext_server=TeletextServer("/etc/teletext_server.json")
 
