@@ -310,8 +310,6 @@ class TVHeadendServer:
 
         mux=m["mux"]
         mi=self.muxes[mux]
-        for i in ("frequency", "polarisation", "orbital"):
-            print(i, mi[i])
         pids=m["pids"]
         if len(pids)==0:
             self.logger.logEnd("No pids")
