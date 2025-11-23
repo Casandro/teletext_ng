@@ -209,6 +209,7 @@ class TVHeadendServer:
         threads=[]
         mux_sum=0
         time_sum=0
+        last_status=None
         while True:
             if last_service_update is None or last_service_update < time.time()-4*3600:
                 self.update_services(allow, deny)
@@ -233,14 +234,16 @@ class TVHeadendServer:
                 t=threading.Thread(target=self.handle_transponder, args=())
                 t.start()
                 threads.append(t)
-            muxes=[]
-            for mux in self.current_muxes:
-                muxes.append(mux)
-            status={}
-            status["muxes"]=muxes
-            status["duration"]=120
-            tmp=self.teletextserver.getJson("status", status)
-            time.sleep(30)
+            if last_status is None or last_status<=time.time()-60:
+                muxes=[]
+                for mux in self.current_muxes:
+                    muxes.append(mux)
+                status={}
+                status["muxes"]=muxes
+                status["duration"]=120
+                tmp=self.teletextserver.getJson("status", status)
+                last_status=time.time()
+            time.sleep(10)
 
 
     def allow_deny_orbital(self, allow, deny, orbital):
