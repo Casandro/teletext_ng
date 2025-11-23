@@ -219,7 +219,6 @@ class TVHeadendServer:
         
             avg_mux=mux_sum/time_sum
             ltime=time.time()
-            time.sleep(10)
             for n in threads:
                 if not n.is_alive():
                     threads.remove(n)
@@ -239,8 +238,9 @@ class TVHeadendServer:
                 muxes.append(mux)
             status={}
             status["muxes"]=muxes
-            status["duration"]=60
+            status["duration"]=120
             tmp=self.teletextserver.getJson("status", status)
+            time.sleep(30)
 
 
     def allow_deny_orbital(self, allow, deny, orbital):
