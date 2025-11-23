@@ -119,7 +119,10 @@ class TVHeadend:
     def getObject(self, uuid):
         return self.getJson("raw/export?uuid=%s" % uuid)
     def getMuxCmd(self, uuid, pids):
-        return "wget -o /dev/null -O - --read-timeout=20 --tries=1 %s/stream/mux/%s?pids=0,1,%s --user=%s --password=%s " % (self.path, uuid, ",".join(map(str,pids)), self.username, self.password)
+        if len(pids)==0:
+            return "wget -o /dev/null -O - --read-timeout=20 --tries=1 %s/stream/mux/%s --user=%s --password=%s " % (self.path, uuid, self.username, self.password)
+        else:
+            return "wget -o /dev/null -O - --read-timeout=20 --tries=1 %s/stream/mux/%s?pids=0,1,%s --user=%s --password=%s " % (self.path, uuid, ",".join(map(str,pids)), self.username, self.password)
 
 
 def copy_properties(input_h, prop_list):
@@ -165,7 +168,7 @@ class TVHeadendServer:
     tmpdir="/tmp/teletext/"
     outdir=None
     locked=False
-    internal_locks={}
+    current_muxes={}
     def __init__(self, config_file):
         allow=[]
         deny=[]
@@ -221,6 +224,7 @@ class TVHeadendServer:
                 if not n.is_alive():
                     threads.remove(n)
             print("mux_numbers: cur: %s, avg: %s, max: %s" % (len(threads), avg_mux, capture_limit))
+#            print("internal_locks: %s" % self.current_muxes)
             start_new=False
             if avg_mux<capture_limit and len(threads)<round(capture_limit+0.4):
                 start_new=True
@@ -231,7 +235,7 @@ class TVHeadendServer:
                 t.start()
                 threads.append(t)
             muxes=[]
-            for mux in self.internal_locks:
+            for mux in self.current_muxes:
                 muxes.append(mux)
             status={}
             status["muxes"]=muxes
@@ -239,11 +243,18 @@ class TVHeadendServer:
             tmp=self.teletextserver.getJson("status", status)
 
 
-    #    while True:
-     #       self.handle_transponder([])
+    def allow_deny_orbital(self, allow, deny, orbital):
+        if orbital in allow:
+            return True
+        if orbital in deny:
+            if not orbital in allow:
+                return False
+        if len(allow)==0:
+            return True
+        return False
 
     def update_services(self, allow, deny):
-        self.logger.logStart("Update Services")
+        self.logger.logStart("Update Services allow=%s deny=%s" % (allow, deny))
         muxes_raw=self.tvheadend.getJson("raw/export?class=dvb_mux")
         services_raw=self.tvheadend.getJson("raw/export?class=service")
         services_hash={}
@@ -251,12 +262,9 @@ class TVHeadendServer:
             services_hash[service["uuid"]]=service
         wurst={}
         self.muxes={}
+        orbitals=[]
         for mux in muxes_raw:
-            if (not "scan_last" in mux) or mux["scan_last"] == 0:
-                continue
-            if (not "scan_result" in mux) or mux["scan_result"] != 1:
-                continue
-            if mux["enabled"] != 1:
+            if not "services" in mux:
                 continue
             if len(mux["services"])==0:
                 continue
@@ -271,22 +279,21 @@ class TVHeadendServer:
             else:
                 orbital="X"
 
-            if orbital in deny:
-                if not orbital in allow:
-                    continue
-        
+            if not self.allow_deny_orbital(allow, deny, orbital):
+                continue
+
+            if not orbital in orbitals:
+                orbitals.append(orbital)
+
             services={}
             for sn in mux["services"]:
                 service=services_hash[sn]
-                if "last_seen" in service and service["last_seen"]<=time.time()-7*24*3600:
-                    continue
-                del service["uuid"]
                 services[int(service["sid"])]=service
             mux["services"]=services
 
             self.muxes[mux["uuid"]]=mux
             del mux["uuid"]
-        self.logger.logEnd("Update Services")
+        self.logger.logEnd("Update %s Services %s"% (len(self.muxes), orbitals))
         with open("/tmp/muxes.json", "w") as f:
             f.write(json.dumps(self.muxes))
         return self.teletextserver.getJson("post_muxes", self.muxes)
@@ -306,7 +313,12 @@ class TVHeadendServer:
         for i in ("frequency", "polarisation", "orbital"):
             print(i, mi[i])
         pids=m["pids"]
-        self.internal_locks[mux]=m["names"]
+        if len(pids)==0:
+            self.logger.logEnd("No pids")
+            self.logger.logEnd("")
+            return
+        print("mux: %s" %mux)
+        self.current_muxes[mux]=m
         capture_time=time.time()
         # temp directory
         path=self.tmpdir
@@ -318,7 +330,6 @@ class TVHeadendServer:
         tsteletext_cmd="ts_teletext --ts --stop -p%s '-s'" % (prefix)
         cmd="timeout 8000 %s | %s > /dev/null" % (wget_cmd, tsteletext_cmd)
         print(cmd)
-        del self.internal_locks[mux]
         time.sleep(1)
         self.logger.logStart("actual capture")
         os.system(cmd)
@@ -352,6 +363,7 @@ class TVHeadendServer:
         tmp=self.teletextserver.getJson("upload", mux_result)
         self.logger.logEnd()
         self.logger.logEnd()
+        self.current_muxes[mux]=None
         return
 
 def handle_transponder_thread(tvh):
