@@ -15,7 +15,7 @@ import gzip
 import subprocess
 import operator
 import logging
-
+import sys
 import threading
 
 
@@ -167,11 +167,19 @@ class TVHeadendServer:
     locked=False
     internal_locks={}
     def __init__(self, config_file):
+        allow=[]
+        deny=[]
+
         self.config=ConfigFileHandler(config_file)
         tvh_config=self.config.get("tvheadend")
         tvh_user=tvh_config["username"]
         tvh_password=tvh_config["password"]
         tvh_path=tvh_config["path"]
+        if "allow" in tvh_config:
+            allow=tvh_config["allow"]
+
+        if "deny" in tvh_config:
+            deny=tvh_config["deny"]
 
         tts_config=self.config.get("server")
         tts_path=tts_config["path"]
@@ -200,7 +208,7 @@ class TVHeadendServer:
         time_sum=0
         while True:
             if last_service_update is None or last_service_update < time.time()-4*3600:
-                self.update_services()
+                self.update_services(allow, deny)
                 last_service_update=time.time()
 
             time_sum=time_sum+1
@@ -234,7 +242,7 @@ class TVHeadendServer:
     #    while True:
      #       self.handle_transponder([])
 
-    def update_services(self):
+    def update_services(self, allow, deny):
         self.logger.logStart("Update Services")
         muxes_raw=self.tvheadend.getJson("raw/export?class=dvb_mux")
         services_raw=self.tvheadend.getJson("raw/export?class=service")
@@ -252,6 +260,20 @@ class TVHeadendServer:
                 continue
             if len(mux["services"])==0:
                 continue
+
+            orbital=""
+            if "orbital" in mux:
+                orbital=mux["orbital"]
+            elif "delsys" in mux and mux["delsys"] in ("DVB-T", "DVB-T2"):
+                orbital="T"
+            elif  "delsys" in mux and mux["delsys"] in ("DVB-C", "DVB-C"):
+                orbital="C"
+            else:
+                orbital="X"
+
+            if orbital in deny:
+                if not orbital in allow:
+                    continue
         
             services={}
             for sn in mux["services"]:
@@ -276,6 +298,9 @@ class TVHeadendServer:
         m=self.teletextserver.getJson("get_mux", None)
         self.logger.logEnd("%s" % m)
         mux=m["mux"]
+        mi=self.muxes[mux]
+        for i in ("frequency", "polarisation", "orbital"):
+            print(i, mi[i])
         pids=m["pids"]
         self.internal_locks[mux]=m["names"]
         capture_time=time.time()
@@ -332,6 +357,6 @@ def handle_transponder_thread(tvh):
 
 #logging.basicConfig(level=0)
 #server=TVHeadendServer("teletext", "teletext", "http://192.168.5.5:9981/", "http://localhost:8888/", "wurst", "passwort")
-server=TVHeadendServer("wurst.json")
+server=TVHeadendServer(sys.argv[1])
 
 #print(json.dumps(server.muxes, indent=True))
