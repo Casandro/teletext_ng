@@ -450,35 +450,45 @@ class TeletextServer:
             gmux=local_to_global[lmux]
             mux=self.muxhandler.find_mux_by_id(gmux)
             if mux is None:
+                print("mux %s not found here" % (lmux))
                 continue
             if "locked" in mux and mux["locked"]>=time.time():
+                print("mux %s %s is locked" % (lmux, gmux))
                 continue
             last=self.get_oldest_service(mux)
             if last==False:
                 continue
-            if last is None:
+            if last is None and not mux is None:
                 oldest_mux=mux
                 oldest_lmux=lmux
+                print("last is none and not mux is none")
                 break
             if last<oldest:
                 oldest=last
                 oldest_mux=mux
                 oldest_lmux=lmux
 
+        if oldest_mux is None:
+            print("OLDEST_MUX is None!!!!")
+            return False
+
         oldest_mux["locked"]=round(time.time()+8000)
         pids=[]
         service_names={}
         for x in oldest_mux["text_services"]:
             ts=oldest_mux["text_services"][x]
-            s=self.text_services.get(ts["service_name"])
+            service_name=ts["service_name"]
+            if service_name is None:
+                continue
+            s=self.text_services.get(service_name)
             if s is None:
                 s={}
             s["locked"]=time.time()+8000
-            self.text_services.set(ts["service_name"], s)
+            self.text_services.set(service_name, s)
             p=int(x)
             if not p in pids:
                 pids.append(p)
-                service_names[p]=ts["service_name"]
+                service_names[p]=service_name
         result={}
         result["mux"]=oldest_lmux
         result["pids"]=pids
