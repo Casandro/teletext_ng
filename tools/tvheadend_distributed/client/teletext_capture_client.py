@@ -184,6 +184,8 @@ class TVHeadendServer:
             self.outdir=self.config.get("outdir")
 
         capture_limit=1.5
+        if "mux_count" in tvh_config:
+            capture_limit=float(tvh_config["mux_count"])
         start_time=time.time()
         
         self.logger=tvhLogger()
@@ -210,7 +212,7 @@ class TVHeadendServer:
             for n in threads:
                 if not n.is_alive():
                     threads.remove(n)
-            print("Current average mux number %s Current number of muxes %s" % (avg_mux, len(threads)))
+            print("mux_numbers: cur: %s, avg: %s, max: %s" % (len(threads), avg_mux, capture_limit))
             start_new=False
             if avg_mux<capture_limit and len(threads)<round(capture_limit+0.4):
                 start_new=True
@@ -220,6 +222,13 @@ class TVHeadendServer:
                 t=threading.Thread(target=self.handle_transponder, args=())
                 t.start()
                 threads.append(t)
+            muxes=[]
+            for mux in self.internal_locks:
+                muxes.append(mux)
+            status={}
+            status["muxes"]=muxes
+            status["duration"]=60
+            tmp=self.teletextserver.getJson("status", status)
 
 
     #    while True:
