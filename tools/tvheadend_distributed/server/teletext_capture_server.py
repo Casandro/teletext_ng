@@ -298,6 +298,7 @@ class MuxHandler:
 
 
 class TeletextServer:
+    current_muxes={}
     def __init__(self, path):
         self.basic_config=ConfigFileHandler(path)
         var_directory=self.basic_config.get("var_dir")
@@ -606,6 +607,9 @@ class TeletextServer:
             self.writeRow(wfile, [sn, lu_string, locked, header])
         
         wfile.write(b"</table>")
+        wfile.write(b"<pre>")
+        wfile.write(self.list_all_muxes().encode("UTF-8"))
+        wfile.write(b"</pre>")
         wfile.write(b"</body>")
         return
     def post_muxes(self, user, muxes):
@@ -624,6 +628,7 @@ class TeletextServer:
         print("Status: %s" % body)
         duration=body["duration"]
         muxes=body["muxes"]
+        gmuxes=[]
         for mux in muxes:
             local_mux=mux
             translations=self.mux_translations.get(user)
@@ -632,6 +637,7 @@ class TeletextServer:
             mux=self.muxhandler.find_mux_by_id(mux_id)
             if mux is None:
                 continue
+            gmuxes.append(mux)
             mux["locked"]=time.time()+duration
             if "text_services" in mux:
                 text_services=mux["text_services"]
@@ -645,7 +651,44 @@ class TeletextServer:
                         s["locked"]=time.time()+duration
                         s["user"]=user
                         self.text_services.set(sn, s)
+        self.current_muxes[user]=gmuxes
         return True
+    def progress_bar(self, fraction, width=70):
+        if (fraction>1):
+            fraction=1
+        w=round(width*fraction)
+        return ("#"*w)+("."*(width-w))
+    def list_current_mux(self, user, mux):
+        lines=[]
+        lines.append("Mux: %s User: %s" % (mux["id"], user))
+        if "last_attempt" in mux and "captures" in mux and len(mux["captures"])>0:
+            max_time=0
+            for c in mux["captures"]:
+                if c[1]>max_time:
+                    max_time=c[1]
+            start=mux["last_attempt"]
+            end=start+max_time
+            fraction=(time.time()-start)/max_time
+            lines.append("  " +(self.progress_bar(fraction)))
+        if "text_services" in mux:
+            ts=mux["text_services"]
+            services=[]
+            for s in ts:
+                sn=ts[s]["service_name"]
+                if not sn in services:
+                    services.append(str(sn))
+            lines.append("    "+(",".join(services)))
+        lines.append("")
+        return "\r\n".join(lines)
+    def list_all_muxes(self):
+        s=""
+        for user in self.current_muxes:
+            user_muxes=self.current_muxes[user]
+            for mux in user_muxes:
+                s=s+self.list_current_mux(user, mux)
+        return s
+
+
 
 teletext_server=TeletextServer("/etc/teletext_server.json")
 
