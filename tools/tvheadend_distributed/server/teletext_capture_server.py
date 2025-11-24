@@ -156,10 +156,9 @@ def clean_string(s):
 class MuxHandler:
     muxfile=None
     muxes={} # muxes["$orbital_%onid_$tsid_$polarisation"]=[mux]
-    # mux["id"]="$orbital..."
-    # mux["exemplar"]=latest mux from client
-    # mux["texts"][pid]...
     translations={} # translations[user][uuid]=id 
+    muxfile_date=None
+
     def __init__(self, muxfile):
         self.muxfile=muxfile
         self.load_from_file()
@@ -172,6 +171,11 @@ class MuxHandler:
         if os.path.exists(self.muxfile):
             with open(self.muxfile, "r") as f:
                 self.muxes=json.load(f)
+                self.muxfile_date=time.time()
+    def check_for_updates(self):
+        if self.muxfile_date>time.time()-10:
+            return
+        self.load_from_file()
     def save_to_file(self):
         with open(self.muxfile+".tmp", "w") as f:
             json.dump(self.muxes, f, indent=1)
@@ -256,6 +260,7 @@ class MuxHandler:
         self.muxes[key].append(mux)
         return mux
     def post_mux(self, lmux):
+        self.check_for_updates()
         mux=self.find_or_create_mux(lmux)
         self.update_mux(mux, local_mux=lmux)
         return mux
@@ -263,6 +268,7 @@ class MuxHandler:
         self.save_to_file()
         return True
     def update_mux(self, mux, local_mux=None):
+        self.check_for_updates()
         if not local_mux is None:
             mux["exemplar"]=local_mux
         if not "text_services" in mux:
@@ -324,7 +330,6 @@ class TeletextServer:
 
         if "locked" in mux:
             del mux["locked"]
-        mux["last_attempt"]=time.time()
 
         if not "captures" in mux:
             mux["captures"]=[]
@@ -377,20 +382,20 @@ class TeletextServer:
 
         return "OK"
 
-    def is_service_good(self, text_service):
-#        if text_service["service_name"]=="BLOCK":
-#            return False
+    def is_service_good(self, text_service, mux):
+        if text_service["service_name"]=="BLOCK":
+            return False
         if not "captures" in text_service:
             return True 
-        if len(text_service["captures"])<4:
+        if len(text_service["captures"])<10:
             return True
         max_size=0
         size_sum=0
         cnt=0
         for captures in text_service["captures"]:
             date=captures[0]
-            if date<time.time()-7*24*3600:
-                continue
+#            if date<time.time()-7*24*3600:
+#                continue
             size=captures[2]
             if size>max_size :
                 max_size=size
@@ -399,9 +404,10 @@ class TeletextServer:
         avg_size=size_sum/cnt
         if max_size>4000:
             return True
-        #if max_size<500:
-        #    print("biggest capture to small %s", max_size)
-        #    return False
+        if max_size<500:
+            print("biggest capture of %s %s  to small %s with %s captures" % (mux, text_service["service_name"], max_size, len(text_service["captures"])))
+#            print(text_service["captures"])
+#            return False
         return True
 
     def filter_captures(self, captures):
@@ -421,7 +427,7 @@ class TeletextServer:
         cnt=0
         for pid in text_services:
             ts=text_services[pid]
-            if not self.is_service_good(ts):
+            if not self.is_service_good(ts,mux["id"]):
                 continue
             service_name=ts["service_name"]
 #            if service_name=="BLOCK":
@@ -440,6 +446,29 @@ class TeletextServer:
             return False
         return oldest
 
+    def get_mux_quality(self, mux):
+        if not "text_services" in mux:
+            return 0
+        teletext_services=mux["text_services"]
+        if len(teletext_services)==0:
+            return 0
+        cnt=0
+        for pid in teletext_services:
+            service=teletext_services[pid]
+            if service["service_name"]=="BLOCK":
+                continue
+            if not "captures" in service:
+                cnt=cnt+1
+                continue
+            max_size=None
+            for c in service["captures"]:
+                size=c[2]
+                if max_size is None or size>max_size:
+                    max_size=size
+            if max_size>1000:
+                cnt=cnt+1
+        return cnt
+
 
     def get_mux(self, user, body):
         translations=self.mux_translations.get(user)
@@ -456,6 +485,10 @@ class TeletextServer:
 #            if "locked" in mux and mux["locked"]>=time.time():
 #                print("mux %s %s is locked" % (lmux, gmux))
 #                continue
+            quality=self.get_mux_quality(mux)
+            if quality==0:
+                continue
+            #print("mux: %s, quality: %s" % (mux["id"], quality))
             last=self.get_oldest_service(mux)
             if last==False:
                 continue
@@ -463,13 +496,19 @@ class TeletextServer:
             if last is None:
                 oldest_mux=mux
                 oldest_lmux=lmux
-                print("last is none and not mux is none")
+                print("last is none")
+                break
+            if not "last_attempt" in mux:
+                oldest_mux=mux
+                oldest_lmux=lmux
+                print("never attempted mux %s "% mux["id"])
                 break
             if last<oldest:
                 oldest=last
                 oldest_mux=mux
                 oldest_lmux=lmux
 
+        oldest_mux["last_attempt"]=time.time()
         if oldest_mux is None:
             print("OLDEST_MUX is None!!!!")
             return False
@@ -495,6 +534,7 @@ class TeletextServer:
         result["mux"]=oldest_lmux
         result["pids"]=pids
         result["names"]=service_names
+        print("got mux %s" % oldest_mux["id"])
         return result
 
     def calc_auth(self, salt, user, token):
@@ -548,6 +588,8 @@ class TeletextServer:
             if locked>0:
                 if "user" in s:
                     locked=s["user"]
+            else:
+                locked=False
             header=None
             if "header" in s:
                 header=s["header"]
