@@ -152,12 +152,15 @@ class TeletextServer:
         status_code=None
         while status_code!=200:
             cnt=cnt+1
-            req=requests.post(self.path, data=gzip.compress(json.dumps(body).encode("UTF-8")), headers={"Content-Encoding": "gzip"})
-            status_code=req.status_code
+            try:
+                req=requests.post(self.path, data=gzip.compress(json.dumps(body).encode("UTF-8")), headers={"Content-Encoding": "gzip"})
+                status_code=req.status_code
+            except:
+                status_code=0
             if cnt>retries:
                 break
             time.sleep(timeout)
-            timeout=timeout*1.1
+            timeout=timeout*1.5
         if req.status_code!=200:
             raise Exception("status_code: %s, text: %s" % (req.status_code, req.text))
         return json.loads(req.text)
@@ -215,8 +218,8 @@ class TVHeadendServer:
                 self.update_services(allow, deny)
                 last_service_update=time.time()
 
-            time_sum=time_sum+1
-            mux_sum=mux_sum+len(threads)
+            time_sum=time_sum*0.99+1
+            mux_sum=mux_sum*0.99+len(threads)
         
             avg_mux=mux_sum/time_sum
             ltime=time.time()
@@ -342,6 +345,7 @@ class TVHeadendServer:
         mux_result["mux"]=mux
         
         for pid in pids:
+            time.sleep(0.1)
             pid_s="0x{:04x}.zip".format(pid)
             filename=prefix+pid_s
             if not os.path.isfile(filename):
