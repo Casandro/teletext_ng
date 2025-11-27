@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
-        self.send_header("Content-Type", "text/html")
+        self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
         teletext_server.writeList(self.wfile)
     def do_POST(self):
@@ -405,14 +405,14 @@ class TeletextServer:
         avg_size=size_sum/cnt
         if max_size>4000:
             return True
-        if max_size<500:
+        if max_size<100:
             print("biggest capture of %s %s  to small %s with %s captures" % (mux, text_service["service_name"], max_size, len(text_service["captures"])))
 #            print(text_service["captures"])
 #            return False
         return True
 
     def filter_captures(self, captures):
-        cutoff=time.time()-7*24*3600
+        cutoff=time.time()-4*24*3600
         captures_new=[]
         for c in captures:
             if c[0]<cutoff:
@@ -466,7 +466,7 @@ class TeletextServer:
                 size=c[2]
                 if max_size is None or size>max_size:
                     max_size=size
-            if max_size>1000:
+            if max_size>400:
                 cnt=cnt+1
         return cnt
 
@@ -656,8 +656,11 @@ class TeletextServer:
     def progress_bar(self, fraction, width=70):
         if (fraction>1):
             fraction=1
-        w=round(width*fraction)
-        return ("#"*w)+("."*(width-w))
+        w=round(width*fraction*8)
+        cw=int(w/8)
+        cp=w%8
+        blocks=" ▏▎▍▌▋▊▉"
+        return "━"+(("█"*(cw-1)))+blocks[cp]+("."*(width-cw))+"━"
     def list_current_mux(self, user, mux):
         lines=[]
         lines.append("Mux: %s User: %s" % (mux["id"], user))
@@ -681,11 +684,22 @@ class TeletextServer:
         lines.append("")
         return "\r\n".join(lines)
     def list_all_muxes(self):
-        s=""
+        mux_list=[]
         for user in self.current_muxes:
             user_muxes=self.current_muxes[user]
             for mux in user_muxes:
-                s=s+self.list_current_mux(user, mux)
+                max_time=0
+                for c in mux["captures"]:
+                    if c[1]>max_time:
+                        max_time=c[1]
+                start=mux["last_attempt"]
+                end=start+max_time
+                fraction=(time.time()-start)/max_time
+                mux_list.append([fraction, user, mux])
+        mux_sorted=sorted(mux_list)
+        s=""
+        for m in mux_sorted:
+            s=s+self.list_current_mux(m[1], m[2])
         return s
 
 
