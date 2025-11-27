@@ -509,6 +509,10 @@ class TeletextServer:
                 oldest_mux=mux
                 oldest_lmux=lmux
 
+        if oldest_mux is None:
+            print("Couldn't find mux")
+            return False
+
         oldest_mux["last_attempt"]=time.time()
         if oldest_mux is None:
             print("OLDEST_MUX is None!!!!")
