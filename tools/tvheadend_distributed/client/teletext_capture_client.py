@@ -150,20 +150,24 @@ class TeletextServer:
         timeout=1
         cnt=0
         status_code=None
+        req=None
         while status_code!=200:
             cnt=cnt+1
             try:
                 req=requests.post(self.path, data=gzip.compress(json.dumps(body).encode("UTF-8")), headers={"Content-Encoding": "gzip"})
                 status_code=req.status_code
             except:
+                print("Request failed, attempt %s" % cnt)
                 status_code=0
             if cnt>retries:
                 break
             time.sleep(timeout)
             timeout=timeout*1.5
-        if req.status_code!=200:
-            raise Exception("status_code: %s, text: %s" % (req.status_code, req.text))
-        return json.loads(req.text)
+        if not req is None:
+            if req.status_code!=200:
+                raise Exception("status_code: %s, text: %s" % (req.status_code, req.text))
+            return json.loads(req.text)
+        return None
 
 
 class TVHeadendServer:
@@ -312,6 +316,7 @@ class TVHeadendServer:
         self.logger.logEnd("%s" % m)
         if m == False:
             self.logger.logEnd("No mux returned")
+            time.sleep(10)
             return
 
         mux=m["mux"]
