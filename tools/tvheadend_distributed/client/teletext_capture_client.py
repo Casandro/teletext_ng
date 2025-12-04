@@ -171,6 +171,7 @@ class TeletextServer:
 
 
 class TVHeadendServer:
+    global program_cancelled
     mux_list=[]
     tmpdir="/tmp/teletext/"
     outdir=None
@@ -218,6 +219,8 @@ class TVHeadendServer:
         time_sum=0
         last_status=None
         while True:
+            if program_cancelled:
+                return
             if last_service_update is None or last_service_update < time.time()-4*3600:
                 self.update_services(allow, deny)
                 last_service_update=time.time()
@@ -310,6 +313,7 @@ class TVHeadendServer:
 
     
     def handle_transponder(self):
+        global program_cancelled
         self.logger.logStart("Handle Transponder" )
         self.logger.logStart("get JSON")
         m=self.teletextserver.getJson("get_mux", None)
@@ -341,8 +345,13 @@ class TVHeadendServer:
         print(cmd)
         time.sleep(1)
         self.logger.logStart("actual capture")
-        os.system(cmd)
+        res=os.system(cmd)
+        print("result: %s" %res)
         self.logger.logEnd()
+        if res!=0:
+            return
+        if program_cancelled:
+            return
 
         mux_result={}
         mux_result["pids"]={}
@@ -380,9 +389,13 @@ def handle_transponder_thread(tvh):
     print("Handle transponder thread %s %s" %(threading.current_thread().name, tvh))
     tvh.handle_transponders([])
             
+program_cancelled=False
 
 #logging.basicConfig(level=0)
 #server=TVHeadendServer("teletext", "teletext", "http://192.168.5.5:9981/", "http://localhost:8888/", "wurst", "passwort")
-server=TVHeadendServer(sys.argv[1])
+try:
+    server=TVHeadendServer(sys.argv[1])
+except:
+    program_cancelled=True
 
 #print(json.dumps(server.muxes, indent=True))
