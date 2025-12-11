@@ -162,7 +162,7 @@ class TeletextServer:
             if cnt>retries:
                 break
             time.sleep(timeout)
-            timeout=timeout*1.5
+            timeout=timeout*2
         if not req is None:
             if req.status_code!=200:
                 raise Exception("status_code: %s, text: %s" % (req.status_code, req.text))
