@@ -301,6 +301,7 @@ class TeletextServer:
     current_muxes={}
     def __init__(self, path):
         self.basic_config=ConfigFileHandler(path)
+        self.min_intervall=self.basic_config.get("min_intervall")
         var_directory=self.basic_config.get("var_dir")
         print("var_directory: %s" % var_directory)
         if var_directory is None:
@@ -540,7 +541,12 @@ class TeletextServer:
         result["mux"]=oldest_lmux
         result["pids"]=pids
         result["names"]=service_names
-        result["age"]=oldest
+        if not (oldest is None):
+            age=time.time()-oldest
+            result["age"]=age
+            if not (self.min_intervall is None):
+                if age<self.min_intervall:
+                    result["backoff"]=age
         print("got mux %s" % oldest_mux["id"])
         return result
 
