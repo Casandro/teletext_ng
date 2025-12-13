@@ -19,7 +19,6 @@ import sys
 import threading
 
 
-
 class ConfigFileHandler:
     data = None
     modified = None
@@ -178,6 +177,7 @@ class TVHeadendServer:
     locked=False
     current_muxes={}
     def __init__(self, config_file):
+        global backoff_time
         allow=[]
         deny=[]
 
@@ -234,20 +234,29 @@ class TVHeadendServer:
                 if not n.is_alive():
                     threads.remove(n)
             print("mux_numbers: cur: %s, avg: %s, max: %s" % (len(threads), avg_mux, capture_limit))
-#            print("internal_locks: %s" % self.current_muxes)
             start_new=False
             if avg_mux<capture_limit and len(threads)<round(capture_limit+0.4):
                 start_new=True
             if capture_limit-len(threads)>1:
                 start_new=True
+            if not (backoff_time is None):
+                print("Backoff time: %s" % (backoff_time-time.time()))
+                if (backoff_time>time.time()):
+                    start_new=False
             if start_new:
+                backoff_time=None
                 t=threading.Thread(target=self.handle_transponder, args=())
                 t.start()
                 threads.append(t)
             if last_status is None or last_status<=time.time()-60:
                 muxes=[]
                 for mux in self.current_muxes:
-                    muxes.append(mux)
+                    mux_object=self.current_muxes[mux]
+                    if mux_object["thread"].is_alive():
+                        muxes.append(mux)
+                    else:
+                        print("Thread no longer running, removing mux %s" %mux)
+                        del self.current_muxes[mux]
                 status={}
                 status["muxes"]=muxes
                 status["duration"]=120
@@ -314,13 +323,20 @@ class TVHeadendServer:
     
     def handle_transponder(self):
         global program_cancelled
+        global backoff_time
         self.logger.logStart("Handle Transponder" )
         self.logger.logStart("get JSON")
         m=self.teletextserver.getJson("get_mux", None)
         self.logger.logEnd("%s" % m)
         if m == False:
             self.logger.logEnd("No mux returned")
-            time.sleep(10)
+            if backoff_time is None:
+                backoff_time=time.time()+10
+            return
+
+        if "backoff" in m:
+            backoff_time=m["backoff"]+time.time()
+            print("Backoff: %s" % m["backoff"])
             return
 
         mux=m["mux"]
@@ -330,6 +346,7 @@ class TVHeadendServer:
             self.logger.logEnd("No pids")
             self.logger.logEnd("")
             return
+        m["thread"]=threading.current_thread()
         print("mux: %s" %mux)
         self.current_muxes[mux]=m
         capture_time=time.time()
@@ -390,6 +407,7 @@ def handle_transponder_thread(tvh):
     tvh.handle_transponders([])
             
 program_cancelled=False
+backoff_time=None
 
 #logging.basicConfig(level=0)
 #server=TVHeadendServer("teletext", "teletext", "http://192.168.5.5:9981/", "http://localhost:8888/", "wurst", "passwort")
