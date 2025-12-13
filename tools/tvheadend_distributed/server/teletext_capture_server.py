@@ -395,20 +395,20 @@ class TeletextServer:
         cnt=0
         for captures in text_service["captures"]:
             date=captures[0]
-#            if date<time.time()-7*24*3600:
-#                continue
+            if date<time.time()-4*24*3600:
+                continue
             size=captures[2]
             if size>max_size :
                 max_size=size
             size_sum=size_sum+size
             cnt=cnt+1
+        if cnt==0:
+            return True
         avg_size=size_sum/cnt
         if max_size>4000:
             return True
         if max_size<100:
-            print("biggest capture of %s %s  to small %s with %s captures" % (mux, text_service["service_name"], max_size, len(text_service["captures"])))
-#            print(text_service["captures"])
-#            return False
+            return False
         return True
 
     def filter_captures(self, captures):
@@ -463,6 +463,7 @@ class TeletextServer:
                 continue
             max_size=None
             for c in service["captures"]:
+
                 size=c[2]
                 if max_size is None or size>max_size:
                     max_size=size
@@ -539,6 +540,7 @@ class TeletextServer:
         result["mux"]=oldest_lmux
         result["pids"]=pids
         result["names"]=service_names
+        result["age"]=oldest
         print("got mux %s" % oldest_mux["id"])
         return result
 
