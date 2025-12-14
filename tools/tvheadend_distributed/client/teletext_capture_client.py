@@ -248,7 +248,7 @@ class TVHeadendServer:
                 t=threading.Thread(target=self.handle_transponder, args=())
                 t.start()
                 threads.append(t)
-            if last_status is None or last_status<=time.time()-60:
+            if last_status is None or last_status<=time.time()-30:
                 muxes=[]
                 for mux in self.current_muxes:
                     mux_object=self.current_muxes[mux]
@@ -258,7 +258,7 @@ class TVHeadendServer:
                         print("Thread no longer running, removing mux %s" %mux)
                 status={}
                 status["muxes"]=muxes
-                status["duration"]=120
+                status["duration"]=60
                 tmp=self.teletextserver.getJson("status", status)
                 last_status=time.time()
             time.sleep(10)
@@ -364,6 +364,7 @@ class TVHeadendServer:
         res=os.system(cmd)
         print("result: %s" %res)
         self.logger.logEnd()
+        del self.current_muxes[mux]
         if res!=0:
             return
         if program_cancelled:
@@ -398,7 +399,6 @@ class TVHeadendServer:
         tmp=self.teletextserver.getJson("upload", mux_result)
         self.logger.logEnd()
         self.logger.logEnd()
-        del self.current_muxes[mux]
         return
 
 def handle_transponder_thread(tvh):
