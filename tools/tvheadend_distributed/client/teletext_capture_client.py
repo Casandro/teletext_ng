@@ -256,7 +256,6 @@ class TVHeadendServer:
                         muxes.append(mux)
                     else:
                         print("Thread no longer running, removing mux %s" %mux)
-                        del self.current_muxes[mux]
                 status={}
                 status["muxes"]=muxes
                 status["duration"]=120
