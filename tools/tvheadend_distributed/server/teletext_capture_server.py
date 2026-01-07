@@ -162,10 +162,6 @@ class MuxHandler:
     def __init__(self, muxfile):
         self.muxfile=muxfile
         self.load_from_file()
-        self.legacy_translations=None
-        if os.path.exists("translations.json"):
-            with open("translations.json") as f:
-                self.legacy_translations=json.load(f)
         return
     def load_from_file(self):
         if os.path.exists(self.muxfile):
@@ -203,18 +199,7 @@ class MuxHandler:
         if "svcname" in service:
             sname=service["svcname"]
         srvname=sname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
-        if srvname+"_"+muxname in self.legacy_translations:
-            x=self.legacy_translations[srvname+"_"+muxname]
-            if len(x)>1:
-                return x
-        if srvname+"_"+position in self.legacy_translations:
-            x=self.legacy_translations[srvname+"_"+position]
-            if len(x)>1:    
-                return x
-        if srvname in self.legacy_translations:
-            x=self.legacy_translations[srvname]
-            if len(x)>1:
-                return x
+        return "___"+muxname+"_"+srvname
 
     def get_key(self, mux):
         key_items=[]
