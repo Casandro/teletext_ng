@@ -22,7 +22,7 @@ $(PROG): $(OBJS)
 .PHONY: clean cleaner
 
 install:
-	cp $(PROG) /usr/local/bin/
+	mv /usr/local/bin/$(PROG) /usr/local/bin/$(PROG).alt; cp $(PROG) /usr/local/bin/; rm /usr/local/bin/$(PROG).alt
 
 clean:
 	rm -f $(OBJS) $(DEPS) 

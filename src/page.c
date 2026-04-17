@@ -98,12 +98,12 @@ int add_packet_to_mainpage(all_pages_t *ap, mainpage_t *page, const uint8_t row,
  * 1 unclear if page has been fully received
  * 0 page has not been fully received
  */
-int mainpage_done(const mainpage_t *page)
+int mainpage_done(const mainpage_t *page, const int pageno)
 {
 	if (page==NULL) return 2;
 	if ((page->number&0x0ff)>0x99) return 2; //If page is not a real page, it's full
-	//If this is a single page, return
-	if (page->subpages[0]!=NULL) return page->subpages[0]->cnt;
+	//If this is a single page, return, but only if it's not a special non-nummeric page, and we saw page 0 several times times
+	if ( (page->subpages[0]!=NULL) && ((pageno & 0xff)<0x99) && (page->subpages[0]->cnt>3)) return page->subpages[0]->cnt;
 	//Count the highest yet received subpage
 	int msp=-1;
 	for (int n=1; n<SUBPAGENUM; n++) if (page->subpages[n]!=NULL) msp=n;
@@ -237,7 +237,7 @@ int allpages_done(all_pages_t *p)
 	for (n=0; n<PAGENUM; n++){
 		if (p->pages[n]!=NULL) {
 			cnt=cnt+1;
-			int res=mainpage_done(p->pages[n]);
+			int res=mainpage_done(p->pages[n], n);
 			if (res<2) {
 				if (missing==0) {
 					missing=1;

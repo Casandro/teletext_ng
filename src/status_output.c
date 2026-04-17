@@ -84,7 +84,7 @@ void print_missing_pages(const all_pages_t *ap, FILE *f)
 {
 	list_page_cnt=0;
 	for (int mainpage=0; mainpage<PAGENUM; mainpage++) {
-		int res=mainpage_done(ap->pages[mainpage]);
+		int res=mainpage_done(ap->pages[mainpage], mainpage);
 		if (res<2) {
 			if (list_page_cnt==0) fprintf(f, "Waiting for: ");
 			list_pageno(mainpage, f); 	
@@ -115,7 +115,7 @@ void print_missing_page_headers(const all_pages_t *ap, FILE *f, const char *eol)
 	int hdrcnt=0;
 	for (int mainpage=0; mainpage<PAGENUM; mainpage++) {
 		if (ap->pages[mainpage]==NULL) continue;
-		int res=mainpage_done(ap->pages[mainpage]);
+		int res=mainpage_done(ap->pages[mainpage], mainpage);
 		if (res<2) {
 			int min_subpage=1;
 			int min_existing_subpage=SUBPAGENUM;

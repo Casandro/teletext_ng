@@ -52,6 +52,6 @@ int handle_t42_data(all_pages_t *p, const uint8_t *line);
  */
 int allpages_done(all_pages_t *p);
 void allpages_done_fraction(all_pages_t *p, int *expected, int *count);
-int mainpage_done(const mainpage_t *page);
+int mainpage_done(const mainpage_t *page, const int pageno);
 int write_all_pages(all_pages_t *p);
 int finish_allpages(all_pages_t *p);
