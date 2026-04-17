@@ -102,6 +102,24 @@ int mainpage_done(const mainpage_t *page, const int pageno)
 {
 	if (page==NULL) return 2;
 	if ((page->number&0x0ff)>0x99) return 2; //If page is not a real page, it's full
+	if ( page->subpages[0]!=NULL) { //Let's check the case that there is a subpage 0000, often there will be no other subpage then
+		if (page->subpages[0]->cnt<2) return 0; //We have only seen the page twice or less, we don't have a full capture
+		int spcnt=0;
+		int minsubpage=SUBPAGENUM;
+		int maxsubpage=0;
+		for (int n=1; n<SUBPAGENUM; n++) {
+			if (page->subpages[n]!=NULL) {
+				spcnt=spcnt+1;
+				if (n<minsubpage) {
+					minsubpage=n;
+				}
+				if (n>maxsubpage) {
+					maxsubpage=n;
+				}
+			}
+		}
+		if (minsubpage>1) return 0; //We expect consecutive subcodes, obviously this still isn't fully capture
+	}
 	//If this is a single page, return, but only if it's not a special non-nummeric page, and we saw page 0 several times times
 	if ( (page->subpages[0]!=NULL) && ((pageno & 0xff)<0x99) && (page->subpages[0]->cnt>3)) return page->subpages[0]->cnt;
 	//Count the highest yet received subpage
