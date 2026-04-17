@@ -20,10 +20,9 @@ import threading
 
 
 class ConfigFileHandler:
-    data = None
-    modified = None
-
     def __init__(self, path):
+        data = None
+        modified = None
         print("Init %s"%path)
         self.path=path
         if os.path.exists(self.path):
@@ -69,8 +68,8 @@ class ConfigFileHandler:
 
 
 class tvhLogger:
-    chain = None
     def __init__(self, chain=None):
+        self.chain = None
         self.ident=0
         self.stack=[]
         self.table=[]
@@ -173,12 +172,12 @@ class TeletextServer:
 
 class TVHeadendServer:
     global program_cancelled
-    mux_list=[]
-    tmpdir="/tmp/teletext/"
-    outdir=None
-    locked=False
-    current_muxes={}
     def __init__(self, config_file):
+        self.mux_list=[]
+        self.tmpdir="/tmp/teletext/"
+        self.outdir=None
+        self.locked=False
+        self.current_muxes={}
         global backoff_time
         allow=[]
         deny=[]
