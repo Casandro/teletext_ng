@@ -220,8 +220,7 @@ class MuxHandler:
                 diff=abs(exemplar["frequency"]-frq)
                 if diff<exemplar["symbolrate"]/1000*0.1:
                     return mux
-        return None
-        
+        return None 
     def find_or_create_mux(self, local_mux):
         key=self.get_key(local_mux)
         if not key in self.muxes:
@@ -277,7 +276,6 @@ class MuxHandler:
                             if "svcname" in service:
                                 sname=service["svcname"].upper().replace(" ","-").replace("/","").replace(".","").replace("-HD","") +"_"
                             ts["service_name"]="___"+mux["id"]+"_"+sname+str(pid)
-        #Fixme, handle translation tables between local and global muxes
         return True
                     
 
@@ -668,8 +666,9 @@ class TeletextServer:
                     max_time=c[1]
             start=mux["last_attempt"]
             end=start+max_time
-            fraction=(time.time()-start)/max_time
-            lines.append("  " +(self.progress_bar(fraction)))
+            if max_time>1:
+                fraction=(time.time()-start)/max_time
+                lines.append("  " +(self.progress_bar(fraction)))
         if "text_services" in mux:
             ts=mux["text_services"]
             services=[]
@@ -686,12 +685,16 @@ class TeletextServer:
             user_muxes=self.current_muxes[user]
             for mux in user_muxes:
                 max_time=0
-                for c in mux["captures"]:
-                    if c[1]>max_time:
-                        max_time=c[1]
+                if "captures" in mux:
+                    for c in mux["captures"]:
+                        if c[1]>max_time:
+                            max_time=c[1]
                 start=mux["last_attempt"]
                 end=start+max_time
-                fraction=(time.time()-start)/max_time
+                if max_time>1:
+                    fraction=(time.time()-start)/max_time
+                else:
+                    fraction=0
                 mux_list.append([fraction, user, mux])
         mux_sorted=sorted(mux_list)
         s=""
