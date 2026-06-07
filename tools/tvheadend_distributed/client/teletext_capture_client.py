@@ -135,7 +135,7 @@ class TeletextServer:
         self.path=path
         self.user=user
         self.token=token
-    def getJson(self, endpoint, i, retries=10):
+    def getJson(self, endpoint, i, retries=1000):
         body={}
         body["token"]=self.token
         body["user"]=self.user
@@ -339,7 +339,14 @@ class TVHeadendServer:
             print("Backoff: %s" % m["backoff"])
             return
 
+        print("Mux: %s" % (m))
+
         mux=m["mux"]
+        if "mux_id" in m:
+            mux_id=m["mux_id"]
+        else:
+            print("No mux_id in %s" % (m))
+            mux_id=None
         mi=self.muxes[mux]
         pids=m["pids"]
         if len(pids)==0:
@@ -347,6 +354,7 @@ class TVHeadendServer:
             self.logger.logEnd("")
             return
         m["thread"]=threading.current_thread()
+        m["mux_id"]=mux_id
         print("mux: %s" %mux)
         self.current_muxes[mux]=m
         capture_time=time.time()
@@ -375,6 +383,7 @@ class TVHeadendServer:
         mux_result["pids"]={}
         mux_result["capture_time"]=capture_time
         mux_result["mux"]=mux
+        mux_result["mux_id"]=mux_id
         
         for pid in pids:
             time.sleep(0.1)
