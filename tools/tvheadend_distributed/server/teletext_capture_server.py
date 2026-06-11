@@ -240,9 +240,10 @@ class MuxManager:
         lock_end=round(time.time()+timeout)
         cur=self.con.cursor()
         cur.execute("INSERT INTO mux_locks (mux_id, user_name, locked_until) values (?,?,?) ON CONFLICT (mux_id) DO UPDATE SET user_name=?, locked_until=?",[mux_id_int, user, lock_end, user, lock_end])
+        cur.execute("UPDATE multiplexes SET last_seen=? where mux_id=?", [round(time.time()), mux_id_int])
         self.con.commit()
     def lock_multiplex_update(self, user, lmux, timeout):
-        print("lock_multiplex_update user: %s, lmux: %s" % (user, lmux))
+        #print("lock_multiplex_update user: %s, lmux: %s" % (user, lmux))
         lock_end=round(time.time()+timeout)
         cur=self.con.cursor()
         cur.execute("UPDATE mux_locks SET locked_until=? where mux_id=(select mux_id from mux_cor where user_name=? AND local_uuid=?)", [lock_end,user, lmux])
@@ -265,6 +266,14 @@ class MuxManager:
         else:
             return None
 
+    def get_luuid_from_muxid(self, user, mux_id):
+        cur=self.con.cursor()
+        res=cur.execute("SELECT local_uuid FROM mux_cor WHERE user_name=? AND mux_id=?", [user, mux_id])
+        data=res.fetchall()
+        if len(data)>0:
+            return data[0][0]
+        else:
+            return None
     def get_muxid_from_guuid(self, user, guuid):
         cur=self.con.cursor()
         res=cur.execute("SELECT mux_id from multiplexes WHERE global_id=?", [guuid])
@@ -288,6 +297,62 @@ class MuxManager:
             self.con.commit()
         cur.execute("DELETE FROM mux_cor WHERE user_name=? AND update_id!=?", [user, update_id])
         self.con.commit()
+
+    def get_mux(self, user):
+        print("get_mux: %s" %(user))
+        cur=self.con.cursor()
+        res=cur.execute("""WITH unlocked_service_mapper AS (
+    SELECT sm.*
+    FROM service_mapper AS sm
+    WHERE sm.service_name <> 'BLOCK'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM mux_locks AS ml
+          WHERE ml.mux_id = sm.mux_id
+            AND ml.locked_until > unixepoch()
+      )
+),
+service_latest AS (
+    SELECT
+        service_name,
+        MAX(COALESCE(last_capture, 0)) AS last_capture_global
+    FROM unlocked_service_mapper
+    GROUP BY service_name
+),
+mux_order AS (
+    SELECT
+        sm.mux_id,
+        MIN(sl.last_capture_global) AS smallest_service_capture
+    FROM unlocked_service_mapper AS sm
+    JOIN service_latest AS sl
+      ON sl.service_name = sm.service_name
+    GROUP BY sm.mux_id
+)
+SELECT
+    mo.mux_id,
+    mo.smallest_service_capture,
+    COALESCE(mx.last_seen, 0) AS mux_last_seen,
+    CASE
+        WHEN COALESCE(mx.last_seen, 0) > mo.smallest_service_capture
+        THEN COALESCE(mx.last_seen, 0)
+        ELSE mo.smallest_service_capture
+    END AS effective_capture
+FROM mux_order AS mo
+JOIN multiplexes AS mx
+  ON mx.mux_id = mo.mux_id
+WHERE mo.mux_id IN (SELECT mux_id FROM mux_cor WHERE user_name=? )    
+ORDER BY
+    effective_capture ASC;
+    """, [user])
+
+
+
+
+        data=res.fetchall()
+        if len(data)>0:
+            return data[0][0]
+        else:
+            return None
 
 
 
@@ -449,238 +514,56 @@ class TeletextServer:
 
     def upload(self, user, body):
         local_mux=body["mux"]
-        translations=self.mux_translations.get(user)
-        mux_id=translations["local_to_global"][local_mux]
-        print("upload mux_id: %s, local_mux: %s" %(mux_id, local_mux))
         capture_time=body["capture_time"]
 
-        mux=self.muxhandler.find_mux_by_id(mux_id)
-        if mux is None:
-            return "ERROR"
+        mux_id=self.muxmanager.get_muxid_from_luuid(user, local_mux)
+        if mux_id is None:
+            print("Mux %s not found, rejecting" %(local_mux))
+            return "BAD"
+        print("mux_id: %s"%(mux_id))
+        self.muxmanager.unlock_multiplex(mux_id)
+        for pid in body["pids"]:
+            capture=body["pids"][pid]
+            svcname=""
+            if "svcnames" in body:
+                if pid in body["svcnames"]:
+                    svcname=body["svcnames"][pid]
+                    print("svcname: %s" % (svcname))
+            self.muxmanager.update_service_mapping(mux_id, pid, capture_time, capture["header"], len(capture["content"]), svcname)
+            service_name=self.muxmanager.lookup_service(mux_id, pid)
+            print("New mux lookup %s %s => %s" % (mux_id, pid, service_name))
+        
+            capture=body["pids"][pid]
+            length=len(capture["content"])
 
-        if "locked" in mux:
-            del mux["locked"]
-
-        if not "captures" in mux:
-            mux["captures"]=[]
-        mux["captures"].append([capture_time, time.time()-capture_time, user])
-        mux["captures"]=self.filter_captures(mux["captures"])
-
-        # mid aus local_mux rausfinden
-        mid=self.muxmanager.get_muxid_from_luuid(user, local_mux)
-        if not mid is None:
-            print("mux_id: %s"%(mid))
-            self.muxmanager.unlock_multiplex(mid)
-            for pid in body["pids"]:
-                capture=body["pids"][pid]
-                svcname=""
-                if "svcnames" in body:
-                    if pid in body["svcnames"]:
-                        svcname=body["svcnames"][pid]
-                        print("svcname: %s" % (svcname))
-                self.muxmanager.update_service_mapping(mid, pid, capture_time, capture["header"], len(capture["content"]), svcname)
-                service_name=self.muxmanager.lookup_service(mid, pid)
-                print("New mux lookup %s %s => %s" % (mid, pid, service_name))
-        ##TODO#### use service_name here to determine file name
-
-        #Keys when stored in JSON are always strings
-        for pid in mux["text_services"]:
-            pid_s=str(pid)
-            text_service=mux["text_services"][pid_s]
-            #Try to find pid in upload
-            if pid_s in body["pids"]:
-                print("pid %s in body" % pid_s)
-                capture=body["pids"][pid_s]
-                length=len(capture["content"])
-                header=capture["header"]
-                if not "captures" in text_service:
-                    text_service["captures"]=[]
-                text_service["captures"].append([capture_time, user, length, header])
-                text_service["captures"]=self.filter_captures(text_service["captures"])
-                service_name=text_service["service_name"]
-                if service_name is None:
-                    print("Service Name = None!!!")
-                    continue
-                ts=self.text_services.get(service_name)
-                if ts is None:
-                    ts={}
-                if "locked" in ts:
-                    del ts["locked"]
-                ts["last_used"]=time.time()
-                ts["header"]=header
-                self.text_services.set(service_name, ts)
-                path=self.out_dir+"/"+service_name.replace("/", "").replace("\\","").replace(" ","")
-                if not os.path.isdir(path):
-                    os.makedirs(path)
-                filename=path+"/"+datetime.datetime.fromtimestamp(capture_time, datetime.UTC).isoformat(timespec="seconds")+"-0x"+"{:04x}".format(int(pid))+".zip"
-                print(filename)
-                with open(filename+".tmp", "wb") as f:
-                    file_bin=base64.b64decode(capture["content"])
-                    file_decompressed=gzip.decompress(file_bin)
-                    f.write(file_decompressed)
-                os.rename(filename+".tmp", filename)
-            else:
-                print("pid %s not in body" % pid)
-                if not "captures" in text_service:
-                    text_service["captures"]=[]
-                text_service["captures"].append([capture_time, user, 0, None])
-                text_service["captures"]=self.filter_captures(text_service["captures"])
-        self.muxhandler.save_muxes()
-
+            path=self.out_dir+"/"+service_name.replace("/", "").replace("\\","").replace(" ","")
+            if not os.path.isdir(path):
+                os.makedirs(path)
+            filename=path+"/"+datetime.datetime.fromtimestamp(capture_time, datetime.UTC).isoformat(timespec="seconds")+"-0x"+"{:04x}".format(int(pid))+".zip"
+            print(filename)
+            with open(filename+".tmp", "wb") as f:
+                file_bin=base64.b64decode(capture["content"])
+                file_decompressed=gzip.decompress(file_bin)
+                f.write(file_decompressed)
+            os.rename(filename+".tmp", filename)
         return "OK"
 
-    def is_service_good(self, text_service, mux):
-        if text_service["service_name"]=="BLOCK":
-            return False
-        if not "captures" in text_service:
-            return True 
-        if len(text_service["captures"])<10:
-            return True
-        max_size=0
-        size_sum=0
-        cnt=0
-        for captures in text_service["captures"]:
-            date=captures[0]
-            if date<time.time()-4*24*3600:
-                continue
-            size=captures[2]
-            if size>max_size :
-                max_size=size
-            size_sum=size_sum+size
-            cnt=cnt+1
-        if cnt==0:
-            return True
-        avg_size=size_sum/cnt
-        if max_size>4000:
-            return True
-        if max_size<100:
-            return False
-        return True
-
-    def filter_captures(self, captures):
-        cutoff=time.time()-4*24*3600
-        captures_new=[]
-        for c in captures:
-            if c[0]<cutoff:
-                continue
-            captures_new.append(c)
-        return captures_new
-
-    def get_oldest_service(self, mux):
-        oldest=None
-        if "locked" in mux and mux["locked"]>time.time():
-            return False
-        text_services=mux["text_services"]
-        cnt=0
-        for pid in text_services:
-            ts=text_services[pid]
-            if not self.is_service_good(ts,mux["id"]):
-                continue
-            service_name=ts["service_name"]
-#            if service_name=="BLOCK":
-#                continue
-            service_info=self.text_services.get(service_name)
-            if service_info is None:
-                service_info={}
-            if "locked" in service_info and service_info["locked"]>time.time():
-                continue
-            if not "last_used" in service_info:
-                return None
-            if oldest is None or service_info["last_used"]<oldest:
-                oldest = service_info["last_used"]
-            cnt=cnt+1
-        if cnt==0:
-            return False
-        return oldest
-
-    def get_mux_quality(self, mux):
-        if not "text_services" in mux:
-            return 0
-        teletext_services=mux["text_services"]
-        if len(teletext_services)==0:
-            return 0
-        cnt=0
-        for pid in teletext_services:
-            service=teletext_services[pid]
-            if service["service_name"]=="BLOCK":
-                continue
-            if not "captures" in service:
-                cnt=cnt+1
-                continue
-            max_size=None
-            for c in service["captures"]:
-
-                size=c[2]
-                if max_size is None or size>max_size:
-                    max_size=size
-            if max_size>400:
-                cnt=cnt+1
-        return cnt
-
-
     def get_mux(self, user, body):
-        translations=self.mux_translations.get(user)
-        local_to_global=translations["local_to_global"]
-        oldest=time.time()
-        oldest_mux=None
-        oldest_lmux=None
-        oldest_gmux=None
-        for lmux in local_to_global:
-            gmux=local_to_global[lmux]
-            mux=self.muxhandler.find_mux_by_id(gmux)
-            if mux is None:
-                print("mux %s not found here" % (lmux))
-                continue
-            quality=self.get_mux_quality(mux)
-            if quality==0:
-                continue
-            #print("mux: %s, quality: %s" % (mux["id"], quality))
-            last=self.get_oldest_service(mux)
-            if last==False:
-                continue
-            # At least one service has not yet been captured
-            if last is None:
-                oldest_mux=mux
-                oldest_lmux=lmux
-                oldest_gmux=gmux
-                print("last is none")
-                break
-            if not "last_attempt" in mux:
-                oldest_mux=mux
-                oldest_lmux=lmux
-                oldest_gmux=gmux
-                print("never attempted mux %s "% mux["id"])
-                break
-            if last<oldest:
-                oldest=last
-                oldest_mux=mux
-                oldest_lmux=lmux
-                oldest_gmux=gmux
+        mux_id=self.muxmanager.get_mux(user)
+        if mux_id is None:
+            return "BAD"
 
-        if oldest_mux is None:
-            print("Couldn't find mux")
-            return False
+        luuid=self.muxmanager.get_luuid_from_muxid(user, mux_id)
+        if luuid is None:
+            return "BAD"
 
-        oldest_mux["last_attempt"]=time.time()
-        if oldest_mux is None:
-            print("OLDEST_MUX is None!!!!")
-            return False
-
-        oldest_mux["locked"]=round(time.time()+600)
+        print("Found Mux: %s => %s" % (mux_id, luuid))
         result={}
-        result["mux"]=oldest_lmux
-        print("Found Mux: %s" % (oldest_gmux))
-        mid=self.muxmanager.get_muxid_from_guuid(user, oldest_gmux)
-        if not mid is None:
-            result["mux_id"]=mid
-            self.muxmanager.lock_multiplex(mid, user, 60)
-        if not (oldest is None):
-            age=time.time()-oldest
-            result["age"]=age
-            if not (self.min_intervall is None):
-                if age<self.min_intervall:
-                    result["backoff"]=age
-        print("got mux %s" % oldest_mux["id"])
+        result["mux"]=luuid
+
+        result["mux_id"]=mux_id
+        self.muxmanager.lock_multiplex(mux_id, user, 60)
+        print("got mux %s" % mux_id)
         return result
 
     def calc_auth(self, salt, user, token):
