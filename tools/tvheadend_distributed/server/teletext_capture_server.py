@@ -24,7 +24,7 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         #fixme do compression
         encoding=self.headers.get("Content-Encoding")
-        print("Encoding: %s" % encoding)
+        #print("Encoding: %s" % encoding)
         content_len = int(self.headers.get('Content-Length'))
         if encoding=="gzip":
             body_bytes=gzip.decompress(self.rfile.read(content_len))
@@ -356,137 +356,6 @@ ORDER BY
 
 
 
-class MuxHandler:
-    def __init__(self, muxfile):
-        self.muxmanager=MuxManager("db/db.sqlite")
-        self.muxfile=None
-        self.muxes={} # muxes["$orbital_%onid_$tsid_$polarisation"]=[mux]
-        self.translations={} # translations[user][uuid]=id 
-        self.muxfile_date=None
-        self.muxfile=muxfile
-        self.load_from_file()
-        return
-    def load_from_file(self):
-        if os.path.exists(self.muxfile):
-            with open(self.muxfile, "r") as f:
-                self.muxes=json.load(f)
-                self.muxfile_date=time.time()
-    def check_for_updates(self):
-        if self.muxfile_date>time.time()-10:
-            return
-        self.load_from_file()
-    def save_to_file(self):
-        with open(self.muxfile+".tmp", "w") as f:
-            json.dump(self.muxes, f, indent=1)
-        if os.path.exists(self.muxfile+".bak"):
-            os.unlink(self.muxfile+".bak")
-        if os.path.exists(self.muxfile):
-            os.rename(self.muxfile, self.muxfile+".bak")
-        os.rename(self.muxfile+".tmp", self.muxfile)
-    def legacy_translate(self, mux, service):
-        muxname=""
-        if "delsys" in mux:
-            muxname=muxname+mux["delsys"]+"-"
-            position=mux["delsys"]
-        if "frequency" in mux:
-            muxname=muxname+str(mux["frequency"]);
-        if "polarisation" in mux:
-            muxname=muxname+mux["polarisation"]
-        if "orbital" in mux:
-            muxname=muxname+"-"+mux["orbital"]
-            position=mux["orbital"]
-
-        sname=""
-        if "sid" in service:
-            sname="SID-"+str(service['sid'])
-        if "svcname" in service:
-            sname=service["svcname"]
-        srvname=sname.upper().replace(" HD","").replace(" ","").replace("/","").replace("$","").replace(":","_")
-        return "___"+muxname+"_"+srvname
-
-    def get_key(self, mux):
-        key_items=[]
-        for k in ("delsys", "orbital", "onid", "tsid", "polarisation", "stream_id", "pls_code"):
-            if k in mux:
-                key_items.append(str(mux[k]))
-        return "_".join(key_items)
-    def find_mux_by_id(self, mux_id):
-        sp=mux_id.split("_")
-        key="_".join(sp[:-1])
-        frq=float(sp[-1])*1000
-        if key in self.muxes:
-            mux_list=self.muxes[key]
-            if len(mux_list)==1:
-                return mux_list[0]
-            for mux in mux_list:
-                exemplar=mux["exemplar"]
-                diff=abs(exemplar["frequency"]-frq)
-                if diff<exemplar["symbolrate"]/1000*0.1:
-                    return mux
-        return None 
-    def find_or_create_mux(self, local_mux):
-        key=self.get_key(local_mux)
-        if not key in self.muxes:
-            self.muxes[key]=[]
-            mux={}
-            mux["exemplar"]=local_mux
-            mux["id"]=key+"_"+str(round(local_mux["frequency"]/1000))
-            self.muxes[key].append(mux)
-        muxes=self.muxes[key]
-        if len(muxes)==1:
-            return muxes[0]
-        for mux in muxes:
-            exemplar=mux["exemplar"]
-            diff=abs(exemplar["frequency"]-local_mux["frequency"])
-            if diff<exemplar["symbolrate"]/1000*0.1:
-                return mux
-        #Nothing found, attach mux
-        mux={}
-        mux["exemplar"]=local_mux
-        mux["id"]="%s_%s"% (key,str(local_mux["frequency"]))
-        self.muxes[key].append(mux)
-        return mux
-    def post_mux(self, lmux, user, luuid):
-        self.check_for_updates()
-        mux=self.find_or_create_mux(lmux)
-        self.update_mux(mux, lmux, user, mux["id"])
-        mux_id=self.muxmanager.lookup_muxid(lmux, user, luuid, mux["id"])
-        return mux
-    def save_muxes(self):
-        self.save_to_file()
-        return True
-    def update_mux(self, mux, local_mux, user, luuid):
-        mux_id=self.muxmanager.lookup_muxid(local_mux, user, luuid)
-        self.check_for_updates()
-        if not local_mux is None:
-            mux["exemplar"]=local_mux
-        if not "text_services" in mux:
-            mux["text_services"]={}
-        m=mux["exemplar"]
-        for s in m["services"]:
-            service=m["services"][s]
-            for stream in service["stream"]:
-                if stream["type"]=="TELETEXT":
-                    pid=str(stream["pid"])
-                    if not pid in mux["text_services"]:
-                        mux["text_services"][pid]={}
-                    ts=mux["text_services"][pid]
-                    svcname=""
-                    if "svcname" in service:
-                        ts["svcname"]=service["svcname"]
-                        svcname=service["svcname"]
-                    #if "service_name" in ts:
-                    #    self.muxmanager.set_service_mapping(mux_id, int(pid), ts["service_name"], svcname)
-                    if not "service_name" in ts:
-                        sname=self.legacy_translate(local_mux, service)
-                        if sname!="":
-                            ts["service_name"]=sname
-                        else:
-                            if "svcname" in service:
-                                sname=service["svcname"].upper().replace(" ","-").replace("/","").replace(".","").replace("-HD","") +"_"
-                            ts["service_name"]="___"+mux["id"]+"_"+sname+str(pid)
-        return True
-                    
 
 
 class TeletextServer:
@@ -499,10 +368,7 @@ class TeletextServer:
         if var_directory is None:
             var_directory="/var/spool/teletext_server"
         self.users=ConfigFileHandler(var_directory+"/users.json")
-        self.muxhandler=MuxHandler(var_directory+"/muxes.json")
         self.muxmanager=MuxManager("db/db.sqlite")
-        self.mux_translations=ConfigFileHandler(var_directory+"/mux_translations.json")
-        self.text_services=ConfigFileHandler(var_directory+"/text_services.json")
         self.out_dir=self.basic_config.get("out_dir")
         if self.out_dir is None:
             print("Please set out_dir")
@@ -606,23 +472,6 @@ class TeletextServer:
         wfile.write(b"<body>")
         wfile.write(b"<table>")
         mux_list=[]
-        for sn in self.text_services.list():
-            s=self.text_services.get(sn)
-            lu=0
-            if "last_used" in s:
-                lu=s["last_used"]
-            locked=False
-            if "locked" in s:
-                locked=round(s["locked"]-time.time())
-            if locked>0:
-                if "user" in s:
-                    locked=s["user"]
-            else:
-                locked=False
-            header=None
-            if "header" in s:
-                header=s["header"]
-            mux_list.append([lu, sn, locked, header])
 
         for m in sorted(mux_list, key=operator.itemgetter(0)):
             lu=m[0]
@@ -642,17 +491,9 @@ class TeletextServer:
         return
     def post_muxes(self, user, muxes):
         self.muxmanager.update_muxes_for_user(user, muxes)
-        mux_translations={}
-        mux_translations["local_to_global"]={}
-        mux_translations["global_to_local"]={}
         for luuid in muxes:
             lmux=muxes[luuid]
             self.muxmanager.lookup_muxid(lmux, user, luuid)
-            res=self.muxhandler.post_mux(lmux, user, luuid)
-            mux_translations["local_to_global"][luuid]=res["id"]
-            mux_translations["global_to_local"][res["id"]]=luuid
-        self.muxhandler.save_muxes()
-        self.mux_translations.set(user, mux_translations)
         return True
     def status(self, user, body):
         print("Status: %s" % body)
@@ -661,28 +502,7 @@ class TeletextServer:
         gmuxes=[]
         for mux in muxes:
             local_mux=mux
-            translations=self.mux_translations.get(user)
-            mux_id=translations["local_to_global"][local_mux]
-            
-            mux=self.muxhandler.find_mux_by_id(mux_id)
-            if mux is None:
-                continue
             self.muxmanager.lock_multiplex_update(user, local_mux, duration)
-            gmuxes.append(mux)
-            mux["locked"]=time.time()+duration
-            if "text_services" in mux:
-                text_services=mux["text_services"]
-                for pid in text_services:
-                    ts=text_services[pid]
-                    sn=ts["service_name"]
-                    if not sn is None:
-                        s=self.text_services.get(sn)
-                        if s is None:
-                            s={}
-                        s["locked"]=time.time()+duration
-                        s["user"]=user
-                        self.text_services.set(sn, s)
-        self.current_muxes[user]=gmuxes
         return True
     def progress_bar(self, fraction, width=70):
         if (fraction>1):
