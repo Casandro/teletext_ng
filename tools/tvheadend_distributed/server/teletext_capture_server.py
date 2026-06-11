@@ -10,6 +10,8 @@ import hashlib
 import secrets
 import html
 import operator
+import sqlite3
+import random
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -152,14 +154,150 @@ def clean_string(s):
             o=o+c
     return o
 
+# This object manages the correlation between multiplexes of different interfaces
+class MuxManager:
+    def __init__(self, dbfile):
+        self.con=sqlite3.connect(dbfile)
+        return
+    def lookup_muxid(self, cmux, user, local_uuid="", global_uuid=None):
+        print("lookup_muxid: %s %s %s" %(user, local_uuid, global_uuid))
+        mux_id=self.lookup_muxid_(cmux)
+        if not global_uuid is None:
+            cur=self.con.cursor()
+            cur.execute("UPDATE multiplexes SET global_id=? WHERE mux_id=?", [global_uuid, mux_id])
+            self.con.commit()
+        print("lookup_muxid: user: %s  %s<=>%s" %(user, local_uuid, mux_id))
+        return mux_id
+    def lookup_muxid_(self, cmux):
+        mdata={}
+        for f in ("frequency", "delsys", "orbital", "polarisation", "tsid", "onid", "symbolrate"):
+            if f in cmux:
+                if f=="symbolrate":
+                    mdata[f]=float(cmux[f])/1000
+                else:
+                    mdata[f]=cmux[f]
+            else:
+                mdata[f]=0
+        if "bandwidth" in cmux:
+            mdata["symbolrate"]=8000000 #Shortcut for DVB-T(2)/C
+        cur=self.con.cursor()
+        res=cur.execute("SELECT mux_id, abs(frequency-?) AS diff FROM multiplexes WHERE delsys=? AND orbital=? AND polarisation=? AND tsid=? AND onid=? AND diff<srate/10 ORDER BY diff",
+                        [mdata["frequency"], mdata["delsys"], mdata["orbital"], mdata["polarisation"], mdata["tsid"], mdata["onid"]])
+        data=res.fetchall()
+        if len(data)>0:
+            return data[0][0]
+        cur.execute("INSERT INTO multiplexes (frequency, srate, delsys, orbital, polarisation, tsid, onid) values (?,?,?,?,?,?,?)",
+                    [mdata["frequency"], mdata["symbolrate"], mdata["delsys"], mdata["orbital"], mdata["polarisation"], mdata["tsid"], mdata["onid"]])
+        new_id=cur.lastrowid
+        self.con.commit()
+        return new_id
+    def lookup_service(self, mux_id, pid):
+        print("lookup_service %s %s" % (mux_id, pid))
+        mux_id_int=int(mux_id)
+        pid_int=int(pid)
+        cur=self.con.cursor()
+        res=cur.execute("SELECT service_name from service_mapper where mux_id=? and pid=?", [mux_id_int, pid_int])
+        data=res.fetchall()
+        if len(data)>0:
+            return data[0][0]
+        return "___%s_%s" % (mux_id, pid)
+    def set_service_mapping(self, mux_id, pid, service_name, svcname, header=None, size=0):
+        mux_id_int=int(mux_id)
+        pid_int=int(pid)
+        cur=self.con.cursor()
+        if header is None:
+            cur.execute("insert into service_mapper (mux_id, pid, service_name, svcname) values (?,?,?,? ) on conflict(mux_id,pid) do update set service_name=?, svcname=?", 
+                        [mux_id_int, pid_int, service_name, svcname, service_name, svcname])
+        else:
+            last_capture=time.time()
+            cur.execute("insert into service_mapper (mux_id, pid, service_name, last_capture, last_size, last_header, svcname) values (?,?,?,?,?,?) on conflict(mux_id,pid) do update set service_name=?, svcname=?, last_capture=?, last_size=?, last_header=?", 
+                        [mux_id_int, pid_int, service_name, svcname, last_capture, size, header,
+                         service_name, svcname, last_capture, size, header])
+        new_id=cur.lastrowid
+        self.con.commit()
+        return new_id
+    def update_service_mapping(self, mux_id, pid, capture_time, header, size, svcname=""):
+        print("update_service_mapping %s %s %s %s %s" % (mux_id, pid, capture_time, header, size))
+        if mux_id is None:
+            return
+        if pid is None:
+            return
+        mux_id_int=int(mux_id)
+        pid_int=int(pid)
+        cur=self.con.cursor()
+        res=cur.execute("select sm_id from service_mapper where mux_id=? and pid=?", [mux_id_int, pid_int])
+        data=res.fetchall()
+        if len(data)==0: #No entry yet
+            cur.execute("insert into service_mapper (mux_id, pid, last_capture, last_size, last_header, service_name, svcname) values (?,?,?,?,?,?,?)", 
+                        [mux_id_int, pid_int, capture_time, size, header, "___%s_%s" % (mux_id_int, pid_int), svcname])
+        else: #Update entry
+            cur.execute("update service_mapper set last_capture=?, last_size=?, last_header=? WHERE mux_id=? AND pid=?",  
+                        [capture_time, size, header, mux_id_int, pid_int])
+        self.con.commit()
+    def lock_multiplex(self, mux_id, user, timeout):
+        print("lock_multiplex user: %s, mux_id: %s" % (user, mux_id))
+        mux_id_int=int(mux_id)
+        lock_end=round(time.time()+timeout)
+        cur=self.con.cursor()
+        cur.execute("INSERT INTO mux_locks (mux_id, user_name, locked_until) values (?,?,?) ON CONFLICT (mux_id) DO UPDATE SET user_name=?, locked_until=?",[mux_id_int, user, lock_end, user, lock_end])
+        self.con.commit()
+    def lock_multiplex_update(self, user, lmux, timeout):
+        print("lock_multiplex_update user: %s, lmux: %s" % (user, lmux))
+        lock_end=round(time.time()+timeout)
+        cur=self.con.cursor()
+        cur.execute("UPDATE mux_locks SET locked_until=? where mux_id=(select mux_id from mux_cor where user_name=? AND local_uuid=?)", [lock_end,user, lmux])
+        cur.execute("DELETE from mux_locks where locked_until<?", [round(time.time())])
+        self.con.commit()
+    def unlock_multiplex(self, mux_id):
+        print("unlock_multiples: %s" % (mux_id))
+        mux_id_int=int(mux_id)
+        cur=self.con.cursor()
+        cur.execute("DELETE FROM mux_locks WHERE mux_id=?",[mux_id_int])
+        cur.execute("UPDATE multiplexes SET last_seen=? where mux_id=?", [time.time(), mux_id_int])
+        self.con.commit()
+
+    def get_muxid_from_luuid(self, user, luuid):
+        cur=self.con.cursor()
+        res=cur.execute("SELECT mux_id FROM mux_cor WHERE user_name=? AND local_uuid=?", [user, luuid])
+        data=res.fetchall()
+        if len(data)>0:
+            return data[0][0]
+        else:
+            return None
+
+    def get_muxid_from_guuid(self, user, guuid):
+        cur=self.con.cursor()
+        res=cur.execute("SELECT mux_id from multiplexes WHERE global_id=?", [guuid])
+        data=res.fetchall()
+        if len(data)>0:
+            return data[0][0]
+        else:
+            return None
+    def update_muxes_for_user(self, user, muxes):
+        update_id="%s-%s" % (time.asctime(), random.randint(0,99999999))
+        cur=self.con.cursor()
+        for mux in muxes:
+            mux_id=self.lookup_muxid(muxes[mux], user, local_uuid="", global_uuid=None)
+            mux_uuid=mux
+            res=cur.execute("SELECT corr_id FROM mux_cor WHERE mux_id=? AND user_name=?", [mux_id, mux_uuid])
+            data=res.fetchall()
+            if len(data)>0:
+                cur.execute("UPDATE mux_cor SET local_uuid=?, update_id=?", [mux_uuid, update_id])
+            else:
+                cur.execute("INSERT INTO mux_cor (mux_id, user_name, local_uuid, update_id) VALUES (?, ?, ?, ?)", [mux_id, user, mux_uuid, update_id])
+            self.con.commit()
+        cur.execute("DELETE FROM mux_cor WHERE user_name=? AND update_id!=?", [user, update_id])
+        self.con.commit()
+
+
 
 class MuxHandler:
-    muxfile=None
-    muxes={} # muxes["$orbital_%onid_$tsid_$polarisation"]=[mux]
-    translations={} # translations[user][uuid]=id 
-    muxfile_date=None
-
     def __init__(self, muxfile):
+        self.muxmanager=MuxManager("db/db.sqlite")
+        self.muxfile=None
+        self.muxes={} # muxes["$orbital_%onid_$tsid_$polarisation"]=[mux]
+        self.translations={} # translations[user][uuid]=id 
+        self.muxfile_date=None
         self.muxfile=muxfile
         self.load_from_file()
         return
@@ -243,15 +381,17 @@ class MuxHandler:
         mux["id"]="%s_%s"% (key,str(local_mux["frequency"]))
         self.muxes[key].append(mux)
         return mux
-    def post_mux(self, lmux):
+    def post_mux(self, lmux, user, luuid):
         self.check_for_updates()
         mux=self.find_or_create_mux(lmux)
-        self.update_mux(mux, local_mux=lmux)
+        self.update_mux(mux, lmux, user, mux["id"])
+        mux_id=self.muxmanager.lookup_muxid(lmux, user, luuid, mux["id"])
         return mux
     def save_muxes(self):
         self.save_to_file()
         return True
-    def update_mux(self, mux, local_mux=None):
+    def update_mux(self, mux, local_mux, user, luuid):
+        mux_id=self.muxmanager.lookup_muxid(local_mux, user, luuid)
         self.check_for_updates()
         if not local_mux is None:
             mux["exemplar"]=local_mux
@@ -266,8 +406,12 @@ class MuxHandler:
                     if not pid in mux["text_services"]:
                         mux["text_services"][pid]={}
                     ts=mux["text_services"][pid]
+                    svcname=""
                     if "svcname" in service:
                         ts["svcname"]=service["svcname"]
+                        svcname=service["svcname"]
+                    #if "service_name" in ts:
+                    #    self.muxmanager.set_service_mapping(mux_id, int(pid), ts["service_name"], svcname)
                     if not "service_name" in ts:
                         sname=self.legacy_translate(local_mux, service)
                         if sname!="":
@@ -291,6 +435,7 @@ class TeletextServer:
             var_directory="/var/spool/teletext_server"
         self.users=ConfigFileHandler(var_directory+"/users.json")
         self.muxhandler=MuxHandler(var_directory+"/muxes.json")
+        self.muxmanager=MuxManager("db/db.sqlite")
         self.mux_translations=ConfigFileHandler(var_directory+"/mux_translations.json")
         self.text_services=ConfigFileHandler(var_directory+"/text_services.json")
         self.out_dir=self.basic_config.get("out_dir")
@@ -320,6 +465,23 @@ class TeletextServer:
             mux["captures"]=[]
         mux["captures"].append([capture_time, time.time()-capture_time, user])
         mux["captures"]=self.filter_captures(mux["captures"])
+
+        # mid aus local_mux rausfinden
+        mid=self.muxmanager.get_muxid_from_luuid(user, local_mux)
+        if not mid is None:
+            print("mux_id: %s"%(mid))
+            self.muxmanager.unlock_multiplex(mid)
+            for pid in body["pids"]:
+                capture=body["pids"][pid]
+                svcname=""
+                if "svcnames" in body:
+                    if pid in body["svcnames"]:
+                        svcname=body["svcnames"][pid]
+                        print("svcname: %s" % (svcname))
+                self.muxmanager.update_service_mapping(mid, pid, capture_time, capture["header"], len(capture["content"]), svcname)
+                service_name=self.muxmanager.lookup_service(mid, pid)
+                print("New mux lookup %s %s => %s" % (mid, pid, service_name))
+        ##TODO#### use service_name here to determine file name
 
         #Keys when stored in JSON are always strings
         for pid in mux["text_services"]:
@@ -462,15 +624,13 @@ class TeletextServer:
         oldest=time.time()
         oldest_mux=None
         oldest_lmux=None
+        oldest_gmux=None
         for lmux in local_to_global:
             gmux=local_to_global[lmux]
             mux=self.muxhandler.find_mux_by_id(gmux)
             if mux is None:
                 print("mux %s not found here" % (lmux))
                 continue
-#            if "locked" in mux and mux["locked"]>=time.time():
-#                print("mux %s %s is locked" % (lmux, gmux))
-#                continue
             quality=self.get_mux_quality(mux)
             if quality==0:
                 continue
@@ -482,17 +642,20 @@ class TeletextServer:
             if last is None:
                 oldest_mux=mux
                 oldest_lmux=lmux
+                oldest_gmux=gmux
                 print("last is none")
                 break
             if not "last_attempt" in mux:
                 oldest_mux=mux
                 oldest_lmux=lmux
+                oldest_gmux=gmux
                 print("never attempted mux %s "% mux["id"])
                 break
             if last<oldest:
                 oldest=last
                 oldest_mux=mux
                 oldest_lmux=lmux
+                oldest_gmux=gmux
 
         if oldest_mux is None:
             print("Couldn't find mux")
@@ -504,26 +667,13 @@ class TeletextServer:
             return False
 
         oldest_mux["locked"]=round(time.time()+600)
-        pids=[]
-        service_names={}
-        for x in oldest_mux["text_services"]:
-            ts=oldest_mux["text_services"][x]
-            service_name=ts["service_name"]
-            if service_name is None:
-                continue
-            s=self.text_services.get(service_name)
-            if s is None:
-                s={}
-            s["locked"]=time.time()+600
-            self.text_services.set(service_name, s)
-            p=int(x)
-            if not p in pids:
-                pids.append(p)
-                service_names[p]=service_name
         result={}
         result["mux"]=oldest_lmux
-        result["pids"]=pids
-        result["names"]=service_names
+        print("Found Mux: %s" % (oldest_gmux))
+        mid=self.muxmanager.get_muxid_from_guuid(user, oldest_gmux)
+        if not mid is None:
+            result["mux_id"]=mid
+            self.muxmanager.lock_multiplex(mid, user, 60)
         if not (oldest is None):
             age=time.time()-oldest
             result["age"]=age
@@ -608,12 +758,14 @@ class TeletextServer:
         wfile.write(b"</body>")
         return
     def post_muxes(self, user, muxes):
+        self.muxmanager.update_muxes_for_user(user, muxes)
         mux_translations={}
         mux_translations["local_to_global"]={}
         mux_translations["global_to_local"]={}
         for luuid in muxes:
             lmux=muxes[luuid]
-            res=self.muxhandler.post_mux(lmux)
+            self.muxmanager.lookup_muxid(lmux, user, luuid)
+            res=self.muxhandler.post_mux(lmux, user, luuid)
             mux_translations["local_to_global"][luuid]=res["id"]
             mux_translations["global_to_local"][res["id"]]=luuid
         self.muxhandler.save_muxes()
@@ -632,6 +784,7 @@ class TeletextServer:
             mux=self.muxhandler.find_mux_by_id(mux_id)
             if mux is None:
                 continue
+            self.muxmanager.lock_multiplex_update(user, local_mux, duration)
             gmuxes.append(mux)
             mux["locked"]=time.time()+duration
             if "text_services" in mux:
