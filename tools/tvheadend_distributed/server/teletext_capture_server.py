@@ -167,6 +167,7 @@ class MuxManager:
             cur.execute("UPDATE multiplexes SET global_id=? WHERE mux_id=?", [global_uuid, mux_id])
             self.con.commit()
         print("lookup_muxid: user: %s  %s<=>%s" %(user, local_uuid, mux_id))
+        self.update_services(mux_id, cmux)
         return mux_id
     def lookup_muxid_(self, cmux):
         mdata={}
@@ -189,6 +190,8 @@ class MuxManager:
         cur.execute("INSERT INTO multiplexes (frequency, srate, delsys, orbital, polarisation, tsid, onid) values (?,?,?,?,?,?,?)",
                     [mdata["frequency"], mdata["symbolrate"], mdata["delsys"], mdata["orbital"], mdata["polarisation"], mdata["tsid"], mdata["onid"]])
         new_id=cur.lastrowid
+        #FIXME!!!# Add services if they don't exist
+        # update_service_mapping for all pids with teletext        
         self.con.commit()
         return new_id
     def lookup_service(self, mux_id, pid):
@@ -201,6 +204,22 @@ class MuxManager:
         if len(data)>0:
             return data[0][0]
         return "___%s_%s" % (mux_id, pid)
+    def update_services(self, mux_id, cmux):
+        if not "services" in cmux:
+            print("Mux %s has no services" %mux_id)
+            return
+        for sn in cmux["services"]:
+            service=cmux["services"][sn]
+            if not "stream" in service:
+                continue
+            svcname=""
+            if "svcname" in service:
+                svcname = service["svcname"]
+            for stream in service["stream"]:
+                if "type" in stream and stream["type"]=="TELETEXT":
+                    print("Found pid %si for %s" % (stream["pid"], svcname))
+                    self.update_service_mapping(mux_id, stream["pid"], None, None, None, svcname) 
+
     def set_service_mapping(self, mux_id, pid, service_name, svcname, header=None, size=0):
         mux_id_int=int(mux_id)
         pid_int=int(pid)
@@ -228,11 +247,17 @@ class MuxManager:
         res=cur.execute("select sm_id from service_mapper where mux_id=? and pid=?", [mux_id_int, pid_int])
         data=res.fetchall()
         if len(data)==0: #No entry yet
-            cur.execute("insert into service_mapper (mux_id, pid, last_capture, last_size, last_header, service_name, svcname) values (?,?,?,?,?,?,?)", 
-                        [mux_id_int, pid_int, capture_time, size, header, "___%s_%s" % (mux_id_int, pid_int), svcname])
+            if capture_time is None:
+                print("New service %s mux_id: %s, pid: %s" % (svcname, mux_id, pid))
+                cur.execute("insert into service_mapper (mux_id, pid, service_name, svcname) values (?,?,?,?)", 
+                            [mux_id_int, pid_int, "___%s_%s" % (mux_id_int, pid_int), svcname])
+            else:
+                cur.execute("insert into service_mapper (mux_id, pid, last_capture, last_size, last_header, service_name, svcname) values (?,?,?,?,?,?,?)", 
+                            [mux_id_int, pid_int, capture_time, size, header, "___%s_%s" % (mux_id_int, pid_int), svcname])
         else: #Update entry
-            cur.execute("update service_mapper set last_capture=?, last_size=?, last_header=? WHERE mux_id=? AND pid=?",  
-                        [capture_time, size, header, mux_id_int, pid_int])
+            if not capture_time is None:
+                cur.execute("update service_mapper set last_capture=?, last_size=?, last_header=? WHERE mux_id=? AND pid=?",  
+                            [capture_time, size, header, mux_id_int, pid_int])
         self.con.commit()
     def lock_multiplex(self, mux_id, user, timeout):
         print("lock_multiplex user: %s, mux_id: %s" % (user, mux_id))
