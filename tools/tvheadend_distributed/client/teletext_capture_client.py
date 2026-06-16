@@ -112,10 +112,16 @@ class TVHeadend:
         req=requests.get(self.path+"/api/"+path, auth=HTTPDigestAuth(self.username, self.password))
         req.encoding="utf-8"
         if req.status_code!=200:
-            raise Exception("status_code: %s, text:%s" % (req_status_code, req.text))
+            raise Exception("status_code: %s, text:%s" % (req.status_code, req.text))
         return json.loads(req.text)
-    def getObject(self, uuid):
-        return self.getJson("raw/export?uuid=%s" % uuid)
+    def getObjects(self, uuids):
+        l=len(uuids)
+        if l==0:
+            return []
+        if l>10:
+            mp=round(l/2)
+            return self.getObjects(uuids[:mp])+self.getObjects(uuids[mp:])
+        return self.getJson("raw/export?uuid=%s" % json.dumps(uuids))
     def getMuxCmd(self, uuid, pids):
         if len(pids)==0:
             return "wget -o /dev/null -O - --read-timeout=20 --tries=1 %s/stream/mux/%s --user=%s --password=%s " % (self.path, uuid, self.username, self.password)
@@ -313,7 +319,8 @@ class TVHeadendServer:
                 services[int(service["sid"])]=service
             mux["services"]=services
 
-            self.muxes[mux["uuid"]]=mux
+            if len(mux["services"])>0:
+                self.muxes[mux["uuid"]]=mux
             del mux["uuid"]
         self.logger.logEnd("Update %s Services %s"% (len(self.muxes), orbitals))
         with open("/tmp/muxes.json", "w") as f:
@@ -342,13 +349,30 @@ class TVHeadendServer:
         print("Mux: %s" % (m))
 
         mux=m["mux"]
+        mux_raw=self.tvheadend.getJson("raw/export?uuid=%s" % mux)[0]
+        services_raw=mux_raw["services"]
+        print("Services: %s" % (services_raw))
+        services_raw_downloaded=self.tvheadend.getObjects(services_raw)
+
+
+        pids=[]
+        svcnames={}
+
+        for service in services_raw_downloaded:
+            for stream in service["stream"]:
+                if stream["type"]=="TELETEXT":
+                    pids.append(stream["pid"])
+                    if "svcname" in service:
+                        svcnames[stream["pid"]]=service["svcname"]
+        print("Pids: %s" % (pids))
+        print("svcname: %s" % (svcnames))
         if "mux_id" in m:
             mux_id=m["mux_id"]
         else:
             print("No mux_id in %s" % (m))
             mux_id=None
         mi=self.muxes[mux]
-        pids=m["pids"]
+#        pids=m["pids"]
         if len(pids)==0:
             self.logger.logEnd("No pids")
             self.logger.logEnd("")
@@ -381,6 +405,7 @@ class TVHeadendServer:
 
         mux_result={}
         mux_result["pids"]={}
+        mux_result["svcnames"]=svcnames
         mux_result["capture_time"]=capture_time
         mux_result["mux"]=mux
         mux_result["mux_id"]=mux_id
@@ -406,6 +431,8 @@ class TVHeadendServer:
             service_hash["content"]=content_base64
             mux_result["pids"][int(pid)]=service_hash
         self.logger.logStart("uploading")
+#        with open("/tmp/upload.json", "w") as f:
+#            f.write(json.dumps(mux_result))
         tmp=self.teletextserver.getJson("upload", mux_result)
         self.logger.logEnd()
         self.logger.logEnd()
