@@ -228,7 +228,7 @@ class TVHeadendServer:
         while True:
             if program_cancelled:
                 return
-            if last_service_update is None or last_service_update < time.time()-4*3600:
+            if last_service_update is None or last_service_update < time.time()-3600:
                 self.update_services(allow, deny)
                 last_service_update=time.time()
 

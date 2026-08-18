@@ -1,0 +1,12 @@
+[Unit]
+Description=Teletext Capture Client (%i)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/tvheadend_capture_client /etc/teletext_ng/%i.conf
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
