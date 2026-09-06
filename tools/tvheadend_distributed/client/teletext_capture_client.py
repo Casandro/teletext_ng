@@ -323,8 +323,8 @@ class TVHeadendServer:
                 self.muxes[mux["uuid"]]=mux
             del mux["uuid"]
         self.logger.logEnd("Update %s Services %s"% (len(self.muxes), orbitals))
-        with open("/tmp/muxes.json", "w") as f:
-            f.write(json.dumps(self.muxes))
+#        with open("/tmp/muxes.json", "w") as f:
+#            f.write(json.dumps(self.muxes))
         return self.teletextserver.getJson("post_muxes", self.muxes)
 
     
@@ -347,6 +347,11 @@ class TVHeadendServer:
             return
 
         print("Mux: %s" % (m))
+        if m=="BAD":
+            self.logger.logEnd("")
+            self.logger.logEnd("")
+            time.sleep(10)
+            return 
 
         mux=m["mux"]
         mux_raw=self.tvheadend.getJson("raw/export?uuid=%s" % mux)[0]
