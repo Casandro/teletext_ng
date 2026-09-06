@@ -2,7 +2,7 @@ PROG := ts_teletext
 SRCS := $(wildcard *.c)
 
 CC      := cc
-CFLAGS  := -Wall -Wextra -Werror 
+CFLAGS  := -Wall -Wextra -Werror -Og -fno-omit-frame-pointer -ggdb3
 LDFLAGS := 
 
 OBJS   = $(SRCS:.c=.o)
@@ -22,8 +22,8 @@ $(PROG): $(OBJS)
 .PHONY: clean cleaner
 
 install:
-	cp $(PROG) /usr/local/bin/
-#	mv /usr/local/bin/$(PROG) /usr/local/bin/$(PROG).alt; cp $(PROG) /usr/local/bin/; rm /usr/local/bin/$(PROG).alt
+#	cp $(PROG) /usr/local/bin/
+	mv /usr/local/bin/$(PROG) /usr/local/bin/$(PROG).alt; cp $(PROG) /usr/local/bin/; rm /usr/local/bin/$(PROG).alt
 
 clean:
 	rm -f $(OBJS) $(DEPS) 

@@ -299,6 +299,7 @@ int write_all_pages(all_pages_t *p)
 	}
 
 	if (cnt<=0) return 0;
+	p->last_header[32]=0;
 	printf("File '%s', header: '%s' ...", p->name, p->last_header);
 	int err=0;
 	p->zipfile=zip_open(p->name, ZIP_CREATE | ZIP_EXCL, &err);
@@ -322,8 +323,12 @@ int write_all_pages(all_pages_t *p)
 	char *hfn=NULL;
 	asprintf(&hfn, "%s.txt", p->name);
 	FILE *f=fopen(hfn, "w");
-	fprintf(f,"%s", p->last_header);
-	fclose(f);
+	if (f!=NULL) {
+		fprintf(f,"%s", p->last_header);
+		fclose(f);
+	} else {
+		printf("Opening file %s failed\n", hfn);
+	}
 	free(hfn);
 	return cnt;
 }

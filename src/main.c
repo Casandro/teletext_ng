@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/resource.h>
 
 #include "consts.h"
 #include "status_output.h"
@@ -34,10 +35,26 @@ int shorten_subpage(int sp)
 }
 
 
+static void enable_core_dumps(void)
+{
+    struct rlimit limit = {
+        .rlim_cur = RLIM_INFINITY,
+        .rlim_max = RLIM_INFINITY
+    };
+
+    if (setrlimit(RLIMIT_CORE, &limit) == -1) {
+        perror("setrlimit(RLIMIT_CORE)");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+
 
 
 int main(int argc, char *argv[])
 {
+	enable_core_dumps();
 	int mode=0;
 	int stop=0;
 	int n;
