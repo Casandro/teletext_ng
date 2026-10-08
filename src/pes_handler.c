@@ -112,7 +112,9 @@ int process_ts_packet(const uint8_t *buf, const char *prefix, const char *status
 	int pid=(header >> 8) & 0x1fff;
 	int transport_scrambling_control=(header >>6) &0x3;
 	if (transport_scrambling_control!=0) return 0;
-	//int adaption_field_control=(header >> 4) & 0x3;
+	int adaption_field_control=(header >> 4) & 0x3;
+	int payload_start=4;
+	if (adaption_field_control & 2) payload_start=5+buf[4];
 	int continuity_counter=(header >>0) & 0xf;
 	if (pes_handler[pid]==NULL) {
 		if (payload_unit_start_indicator==1) pes_handler[pid]=new_pes_handler(pid);
@@ -139,7 +141,7 @@ int process_ts_packet(const uint8_t *buf, const char *prefix, const char *status
 		//handle possible previous packet
 		handle_pes(pes_handler[pid], prefix, statusfile);
 		//Check if packet is plausible
-		uint32_t start_code=(buf[4]<<24) | (buf[5]<<16) | (buf[6]<<8) | buf[7];
+		uint32_t start_code=(buf[payload_start]<<24) | (buf[payload_start+1]<<16) | (buf[payload_start+2]<<8) | buf[payload_start+3];
 		if (start_code!=0x000001bd) {
 			pes_handler[pid]->write_pointer=-1;
 			return 0;
@@ -149,7 +151,7 @@ int process_ts_packet(const uint8_t *buf, const char *prefix, const char *status
 	}
 	//Not during a PES
 	if (pes_handler[pid]->write_pointer<0) return 0;
-	for (n=4; n<TSSIZE; n++) {
+	for (n=payload_start; n<TSSIZE; n++) {
 		pes_handler[pid]->pes[pes_handler[pid]->write_pointer]=buf[n];
 		pes_handler[pid]->write_pointer=(pes_handler[pid]->write_pointer+1)&0xffff;
 	}
