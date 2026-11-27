@@ -112,6 +112,7 @@ class TVHeadend:
         req=requests.get(self.path+"/api/"+path, auth=HTTPDigestAuth(self.username, self.password))
         req.encoding="utf-8"
         if req.status_code!=200:
+            print("tvheadend.getJson failed req.status_code=%s" % (req.status_code))
             raise Exception("status_code: %s, text:%s" % (req.status_code, req.text))
         return json.loads(req.text)
     def getObjects(self, uuids):
@@ -123,10 +124,11 @@ class TVHeadend:
             return self.getObjects(uuids[:mp])+self.getObjects(uuids[mp:])
         return self.getJson("raw/export?uuid=%s" % json.dumps(uuids))
     def getMuxCmd(self, uuid, pids):
+        debug_file="/tmp/wget_debug_"+str(threading.get_ident())
         if len(pids)==0:
-            return "wget -o /dev/null -O - --read-timeout=20 --tries=1 %s/stream/mux/%s --user=%s --password=%s " % (self.path, uuid, self.username, self.password)
+            return "wget -o %s -O - --read-timeout=20 --tries=1 %s/stream/mux/%s --user=%s --password=%s " % (debug_file, self.path, uuid, self.username, self.password)
         else:
-            return "wget -o /dev/null -O - --read-timeout=20 --tries=1 %s/stream/mux/%s?pids=0,1,%s --user=%s --password=%s " % (self.path, uuid, ",".join(map(str,pids)), self.username, self.password)
+            return "wget -o %s -O - --read-timeout=20 --tries=1 %s/stream/mux/%s?pids=0,1,%s --user=%s --password=%s " % (debug_file, self.path, uuid, ",".join(map(str,pids)), self.username, self.password)
 
 
 def copy_properties(input_h, prop_list):
@@ -398,9 +400,12 @@ class TVHeadendServer:
         cmd="timeout 8000 %s | %s > /dev/null" % (wget_cmd, tsteletext_cmd)
         print(cmd)
         time.sleep(1)
+        t=time.time()
         self.logger.logStart("actual capture")
         res=os.system(cmd)
-        print("result: %s" %res)
+        print("capture result: %s %s" %(res, time.time()-t))
+        if res!=0:
+            print("capture failed with %s %s" % (res, cmd))
         self.logger.logEnd()
         del self.current_muxes[mux]
         if res!=0:
